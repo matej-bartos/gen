@@ -1,7 +1,6 @@
 import streamlit as st
 from docx import Document
 
-# Data: gen -> varianta -> klíč + interpretace
 data = {
     "MCM6 13910": {
         "TT": {"KLÍČ": "+/+", "INTERPRETACE": "Vrozená tolerance laktózy."},
@@ -22,29 +21,23 @@ data = {
 
 st.title("Genetický výstup – generátor zpráv")
 
-vybrane_data = []
+vybrane = {}
 
 for gen in data.keys():
     if st.checkbox(gen):
         varianty = st.multiselect(f"Vyber varianty pro {gen}:", options=list(data[gen].keys()), key=gen)
-        for var in varianty:
-            klic = data[gen][var]["KLÍČ"]
-            interpretace = data[gen][var]["INTERPRETACE"]
-            st.write(f"**{gen} - Varianta {var}**")
-            st.write(f"Klíč: {klic}")
-            st.write(f"Interpretace: {interpretace}\n")
-            vybrane_data.append({
-                "GEN": gen,
-                "VARIANTA": var,
-                "KLÍČ": klic,
-                "INTERPRETACE": interpretace
-            })
+        if varianty:
+            vybrane[gen] = varianty
+            for var in varianty:
+                st.write(f"**{gen} - Varianta {var}**")
+                st.write(f"Klíč: {data[gen][var]['KLÍČ']}")
+                st.write(f"Interpretace: {data[gen][var]['INTERPRETACE']}\n")
 
 if st.button("Generovat zprávu"):
-    if vybrane_data:
+    if vybrane:
         doc = Document()
         doc.add_heading("Výsledek genetického testu", level=1)
-        table = doc.add_table(rows=len(vybrane_data)+1, cols=4)
+        table = doc.add_table(rows=len(vybrane)+1, cols=4)
         table.style = 'Light List Accent 1'
 
         hdr_cells = table.rows[0].cells
@@ -53,12 +46,19 @@ if st.button("Generovat zprávu"):
         hdr_cells[2].text = "KLÍČ"
         hdr_cells[3].text = "INTERPRETACE"
 
-        for i, zaznam in enumerate(vybrane_data, start=1):
+        for i, (gen, varianty) in enumerate(vybrane.items(), start=1):
+            klice = []
+            interpretace = []
+            for var in varianty:
+                klice.append(data[gen][var]["KLÍČ"])
+                interpretace.append(data[gen][var]["INTERPRETACE"])
+
             row_cells = table.rows[i].cells
-            row_cells[0].text = zaznam["GEN"]
-            row_cells[1].text = zaznam["VARIANTA"]
-            row_cells[2].text = zaznam["KLÍČ"]
-            row_cells[3].text = zaznam["INTERPRETACE"]
+            row_cells[0].text = gen
+            row_cells[1].text = ", ".join(varianty)
+            row_cells[2].text = ", ".join(klice)
+            # Interpretace na nové řádky, proto použijeme '\n' a pak při uložení Word to automaticky převede na nový řádek
+            row_cells[3].text = "\n\n".join(interpretace)
 
         filename = "geneticky_vysledek.docx"
         doc.save(filename)
@@ -67,3 +67,4 @@ if st.button("Generovat zprávu"):
             st.download_button("📄 Stáhnout zprávu ve Wordu", file, file_name=filename)
     else:
         st.warning("Nezaškrtl jsi žádný gen ani variantu.")
+
