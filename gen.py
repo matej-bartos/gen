@@ -1,5 +1,7 @@
 import streamlit as st
 from docx import Document
+from docx.oxml.ns import qn
+from docx.shared import Pt
 
 data = {
     "MCM6 13910": {
@@ -18,6 +20,13 @@ data = {
         "TT": {"KLÍČ": "-/-", "INTERPRETACE": "Výrazně snížený metabolismus tuků."}
     }
 }
+
+def merge_cells_vertically(table, col_idx, start_row_idx, end_row_idx):
+    """Sloučí buňky ve sloupci col_idx od start_row_idx do end_row_idx (včetně) vertikálně."""
+    first_cell = table.cell(start_row_idx, col_idx)
+    for row in range(start_row_idx + 1, end_row_idx + 1):
+        cell_to_merge = table.cell(row, col_idx)
+        first_cell.merge(cell_to_merge)
 
 st.title("Genetický výstup – generátor zpráv")
 
@@ -38,7 +47,6 @@ if st.button("Generovat zprávu"):
         doc = Document()
         doc.add_heading("Výsledek genetického testu", level=1)
 
-        # Spočítáme celkový počet řádků (součet počtu variant pro všechny geny)
         total_rows = sum(len(v) for v in vybrane.values()) + 1
         table = doc.add_table(rows=total_rows, cols=4)
         table.style = 'Light List Accent 1'
@@ -51,20 +59,17 @@ if st.button("Generovat zprávu"):
 
         row_idx = 1
         for gen, varianty in vybrane.items():
-            first_row = True
+            start_merge_idx = row_idx
             for var in varianty:
                 row_cells = table.rows[row_idx].cells
-                if first_row:
-                    row_cells[0].text = gen
-                    first_row = False
-                else:
-                    row_cells[0].text = ""  # ostatní řádky GEN necháme prázdné
-
                 row_cells[1].text = var
                 row_cells[2].text = data[gen][var]["KLÍČ"]
                 row_cells[3].text = data[gen][var]["INTERPRETACE"]
-
                 row_idx += 1
+            # Sloučíme buňky GEN ve sloupci 0 přes všechny varianty
+            merge_cells_vertically(table, 0, start_merge_idx, row_idx - 1)
+            # Do první sloučené buňky dáme jméno genu
+            table.cell(start_merge_idx, 0).text = gen
 
         filename = "geneticky_vysledek.docx"
         doc.save(filename)
