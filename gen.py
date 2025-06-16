@@ -1,5 +1,6 @@
 import streamlit as st
 from docx import Document
+import pandas as pd
 
 # Ukázková data
 data = [
@@ -23,8 +24,12 @@ data = [
     }
 ]
 
-# Titulek aplikace
 st.title("Genetický výstup – generátor zpráv")
+
+# Zobrazit celou tabulku se všemi záznamy
+st.subheader("Seznam genů")
+df = pd.DataFrame(data)
+st.dataframe(df)
 
 # Textové pole pro zadání genu
 gen_input = st.text_input("Zadej název genu (např. DAO):")
@@ -32,6 +37,10 @@ gen_input = st.text_input("Zadej název genu (např. DAO):")
 if st.button("Generovat zprávu"):
     zaznam = next((z for z in data if z["GEN"].lower() == gen_input.lower()), None)
     if zaznam:
+        # Zobrazit detailní data jako tabulku (jeden řádek)
+        st.subheader("Detail genetického záznamu")
+        st.table(pd.DataFrame([zaznam]))
+        
         # Vytvoření Word dokumentu
         doc = Document()
         doc.add_heading("Výsledek genetického testu", level=1)
@@ -48,3 +57,4 @@ if st.button("Generovat zprávu"):
             st.download_button("📄 Stáhnout zprávu ve Wordu", file, file_name=filename)
     else:
         st.warning("Gen nebyl nalezen v databázi.")
+
