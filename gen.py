@@ -25,47 +25,40 @@ data = [
 
 st.title("Genetický výstup – generátor zpráv")
 
-gen_input = st.text_input("Zadej název genu (např. DAO):")
+gen_input = st.text_input("Zadej název genu (více genů odděl čárkou, např. DAO, MCM6 13910):")
 
 if st.button("Generovat zprávu"):
-    zaznam = next((z for z in data if z["GEN"].lower() == gen_input.lower()), None)
-    if zaznam:
-        # Vytvoření Word dokumentu
+    geny = [g.strip().lower() for g in gen_input.split(",")]
+    nalezene_zaznamy = [z for z in data if z["GEN"].lower() in geny]
+
+    if nalezene_zaznamy:
         doc = Document()
         doc.add_heading("Výsledek genetického testu", level=1)
         
-        # Vytvoření tabulky s 4 řádky a 2 sloupci
-        table = doc.add_table(rows=4, cols=2)
-        table.style = 'Light List Accent 1'  # Lze změnit styl tabulky
+        # Vytvoříme tabulku - počet řádků = počet genů + 1 (pro hlavičku)
+        table = doc.add_table(rows=len(nalezene_zaznamy) + 1, cols=4)
+        table.style = 'Light List Accent 1'
         
-        # Hlavičky
+        # Hlavička tabulky
         hdr_cells = table.rows[0].cells
-        hdr_cells[0].text = "Kategorie"
-        hdr_cells[1].text = "Hodnota"
+        hdr_cells[0].text = "GEN"
+        hdr_cells[1].text = "VARIANTA"
+        hdr_cells[2].text = "KLÍČ"
+        hdr_cells[3].text = "INTERPRETACE"
         
-        # Data
-        row_cells = table.rows[1].cells
-        row_cells[0].text = "GEN"
-        row_cells[1].text = zaznam["GEN"]
+        # Vyplnění dat
+        for i, zaznam in enumerate(nalezene_zaznamy, start=1):
+            row_cells = table.rows[i].cells
+            row_cells[0].text = zaznam["GEN"]
+            row_cells[1].text = zaznam["VARIANTA"]
+            row_cells[2].text = zaznam["KLÍČ"]
+            row_cells[3].text = zaznam["INTERPRETACE"]
         
-        row_cells = table.rows[2].cells
-        row_cells[0].text = "VARIANTA"
-        row_cells[1].text = zaznam["VARIANTA"]
-        
-        row_cells = table.rows[3].cells
-        row_cells[0].text = "KLÍČ"
-        row_cells[1].text = zaznam["KLÍČ"]
-        
-        # Přidat další odstavec s interpretací pod tabulku
-        doc.add_paragraph("\nINTERPRETACE:")
-        doc.add_paragraph(zaznam["INTERPRETACE"])
-        
-        filename = f"{zaznam['GEN'].replace(' ', '_')}_vysledek.docx"
+        filename = "geneticky_vysledek.docx"
         doc.save(filename)
 
         with open(filename, "rb") as file:
             st.download_button("📄 Stáhnout zprávu ve Wordu", file, file_name=filename)
     else:
-        st.warning("Gen nebyl nalezen v databázi.")
-
+        st.warning("Žádný gen zadaný v seznamu nebyl nalezen v databázi.")
 
