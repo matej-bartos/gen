@@ -37,7 +37,10 @@ if st.button("Generovat zprávu"):
     if vybrane:
         doc = Document()
         doc.add_heading("Výsledek genetického testu", level=1)
-        table = doc.add_table(rows=len(vybrane)+1, cols=4)
+
+        # Spočítáme celkový počet řádků (součet počtu variant pro všechny geny)
+        total_rows = sum(len(v) for v in vybrane.values()) + 1
+        table = doc.add_table(rows=total_rows, cols=4)
         table.style = 'Light List Accent 1'
 
         hdr_cells = table.rows[0].cells
@@ -46,19 +49,22 @@ if st.button("Generovat zprávu"):
         hdr_cells[2].text = "KLÍČ"
         hdr_cells[3].text = "INTERPRETACE"
 
-        for i, (gen, varianty) in enumerate(vybrane.items(), start=1):
-            klice = []
-            interpretace = []
+        row_idx = 1
+        for gen, varianty in vybrane.items():
+            first_row = True
             for var in varianty:
-                klice.append(data[gen][var]["KLÍČ"])
-                interpretace.append(data[gen][var]["INTERPRETACE"])
+                row_cells = table.rows[row_idx].cells
+                if first_row:
+                    row_cells[0].text = gen
+                    first_row = False
+                else:
+                    row_cells[0].text = ""  # ostatní řádky GEN necháme prázdné
 
-            row_cells = table.rows[i].cells
-            row_cells[0].text = gen
-            row_cells[1].text = ", ".join(varianty)
-            row_cells[2].text = ", ".join(klice)
-            # Interpretace na nové řádky, proto použijeme '\n' a pak při uložení Word to automaticky převede na nový řádek
-            row_cells[3].text = "\n\n".join(interpretace)
+                row_cells[1].text = var
+                row_cells[2].text = data[gen][var]["KLÍČ"]
+                row_cells[3].text = data[gen][var]["INTERPRETACE"]
+
+                row_idx += 1
 
         filename = "geneticky_vysledek.docx"
         doc.save(filename)
@@ -67,4 +73,5 @@ if st.button("Generovat zprávu"):
             st.download_button("📄 Stáhnout zprávu ve Wordu", file, file_name=filename)
     else:
         st.warning("Nezaškrtl jsi žádný gen ani variantu.")
+
 
