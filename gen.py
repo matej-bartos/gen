@@ -3,6 +3,7 @@ from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
 import io
 
+# Data – zkrácená verze
 data = {
     "MCM6 13910": {
         "TT": {"KLÍČ": "+/+", "INTERPRETACE": "Vrozená tolerance laktózy."},
@@ -18,37 +19,39 @@ data = {
 }
 
 def vloz_tabulku_presne(doc, vybrane):
+    # Získáme XML tělo dokumentu
     body = doc._element.body
-    for para in doc.paragraphs:
-        if "###TABULKA###" in para.text:
-            # Index aktuálního odstavce
-            idx = list(body).index(para._element)
 
-            # Odebrat placeholder
-            body.remove(para._element)
+    # Najdeme placeholder odstavec podle jeho textu
+    for idx, element in enumerate(body):
+        if element.tag.endswith("p"):
+            text = "".join([node.text or "" for node in element.iter()])
+            if "###TABULKA###" in text:
+                # Odstranit placeholder
+                body.remove(element)
 
-            # Vytvořit tabulku
-            tbl = doc.add_table(rows=1, cols=4)
-            tbl.style = 'Table Grid'
-            tbl.alignment = WD_TABLE_ALIGNMENT.LEFT
+                # Vytvořit tabulku
+                table = doc.add_table(rows=1, cols=4)
+                table.style = "Table Grid"
+                table.alignment = WD_TABLE_ALIGNMENT.LEFT
 
-            hdr = tbl.rows[0].cells
-            hdr[0].text = "GEN"
-            hdr[1].text = "VÝSLEDNÁ VARIANTA"
-            hdr[2].text = "Dle klíče"
-            hdr[3].text = "INTERPRETACE"
+                hdr = table.rows[0].cells
+                hdr[0].text = "GEN"
+                hdr[1].text = "VÝSLEDNÁ VARIANTA"
+                hdr[2].text = "Dle klíče"
+                hdr[3].text = "INTERPRETACE"
 
-            for gen, varianty in vybrane.items():
-                for var in varianty:
-                    row = tbl.add_row().cells
-                    row[0].text = gen
-                    row[1].text = var
-                    row[2].text = data[gen][var]["KLÍČ"]
-                    row[3].text = data[gen][var]["INTERPRETACE"]
+                for gen, varianty in vybrane.items():
+                    for var in varianty:
+                        row = table.add_row().cells
+                        row[0].text = gen
+                        row[1].text = var
+                        row[2].text = data[gen][var]["KLÍČ"]
+                        row[3].text = data[gen][var]["INTERPRETACE"]
 
-            # Vložit tabulku na místo původního odstavce
-            body.insert(idx, tbl._element)
-            break
+                # Vložit tabulku přesně na místo odstraněného placeholderu
+                body.insert(idx, table._element)
+                break
 
 st.title("🧬 Generátor genetické zprávy")
 
@@ -69,10 +72,11 @@ if st.button("📄 Generovat zprávu"):
         buffer.seek(0)
 
         st.download_button(
-            label="⬇️ Stáhnout zprávu",
+            label="⬇️ Stáhnout výsledkovou zprávu",
             data=buffer,
             file_name="geneticka_zprava.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
     else:
         st.warning("Vyber alespoň jeden gen.")
+
