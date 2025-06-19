@@ -3,7 +3,7 @@ from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
 import io
 
-# Data – zkrácená verze
+# Data
 data = {
     "MCM6 13910": {
         "TT": {"KLÍČ": "+/+", "INTERPRETACE": "Vrozená tolerance laktózy."},
@@ -18,19 +18,16 @@ data = {
     }
 }
 
-def vloz_tabulku_presne(doc, vybrane):
-    # Získáme XML tělo dokumentu
-    body = doc._element.body
+# Funkce pro vložení tabulky za záložku
+def vloz_tabulku_za_bookmark(doc, vybrane, bookmark_name="TABULKA"):
+    # Najdi XML element záložky
+    for p in doc.paragraphs:
+        for bookmark in p._element.findall(".//w:bookmarkStart", namespaces=p._element.nsmap):
+            if bookmark.get(qn("w:name")) == bookmark_name:
+                parent = bookmark.getparent()
+                idx = list(parent).index(bookmark)
 
-    # Najdeme placeholder odstavec podle jeho textu
-    for idx, element in enumerate(body):
-        if element.tag.endswith("p"):
-            text = "".join([node.text or "" for node in element.iter()])
-            if "###TABULKA###" in text:
-                # Odstranit placeholder
-                body.remove(element)
-
-                # Vytvořit tabulku
+                # Vytvoř tabulku
                 table = doc.add_table(rows=1, cols=4)
                 table.style = "Table Grid"
                 table.alignment = WD_TABLE_ALIGNMENT.LEFT
@@ -49,11 +46,13 @@ def vloz_tabulku_presne(doc, vybrane):
                         row[2].text = data[gen][var]["KLÍČ"]
                         row[3].text = data[gen][var]["INTERPRETACE"]
 
-                # Vložit tabulku přesně na místo odstraněného placeholderu
-                body.insert(idx, table._element)
-                break
+                # Vlož tabulku za záložku
+                parent.insert(idx + 1, table._element)
+                return True
+    return False
 
-st.title("🧬 Generátor genetické zprávy")
+# Streamlit UI
+st.title("🧬 Generátor genetické zprávy (se záložkou)")
 
 vybrane = {}
 for gen in data:
@@ -64,19 +63,21 @@ for gen in data:
 
 if st.button("📄 Generovat zprávu"):
     if vybrane:
-        doc = Document("Výsledková zpráva.docx")
-        vloz_tabulku_presne(doc, vybrane)
+        doc = Document("Vysledkova_zprava_s_bookmarkem.docx")
+        success = vloz_tabulku_za_bookmark(doc, vybrane)
 
-        buffer = io.BytesIO()
-        doc.save(buffer)
-        buffer.seek(0)
+        if not success:
+            st.error("Záložka 'TABULKA' nebyla nalezena v dokumentu.")
+        else:
+            buffer = io.BytesIO()
+            doc.save(buffer)
+            buffer.seek(0)
 
-        st.download_button(
-            label="⬇️ Stáhnout výsledkovou zprávu",
-            data=buffer,
-            file_name="geneticka_zprava.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+            st.download_button(
+                label="⬇️ Stáhnout zprávu",
+                data=buffer,
+                file_name="geneticka_zprava.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
     else:
         st.warning("Vyber alespoň jeden gen.")
-
