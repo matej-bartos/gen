@@ -3,8 +3,8 @@ from docx import Document
 import pandas as pd
 import io
 
-# --- 1. Vstupní genetická data ---
-data = {
+# --- 1. Genetická data s interpretací ---
+geneticka_data = {
     "MCM6 13910": {
         "TT": {"KLÍČ": "+/+", "INTERPRETACE": "Vrozená tolerance laktózy."},
         "CT": {"KLÍČ": "+/-", "INTERPRETACE": "Částečná tolerance laktózy."},
@@ -22,35 +22,53 @@ data = {
     }
 }
 
-# --- 2. Vytvoření tabulky (DataFrame) ---
-rows = []
-for gen, genotypy in data.items():
-    for genotyp, hodnoty in genotypy.items():
-        rows.append({
+st.title("🧬 Generátor genetické zprávy se šablonou")
+st.markdown("Vyber geny a genotypy, vygeneruj zprávu, vlož tabulku do šablony Word.")
+
+# --- 2. Výběr genů a genotypů ---
+vybrane_geny = {}
+st.subheader("Výběr genotypů")
+
+for gen, moznosti in geneticka_data.items():
+    if st.checkbox(f"{gen}"):
+        vybrane_genotypy = list(moznosti.keys())
+        vybrany = st.selectbox(f"Genotyp pro {gen}:", vybrane_genotypy, key=gen)
+        vybrane_geny[gen] = vybrany
+
+# --- 3. Vygeneruj DataFrame ---
+if vybrane_geny:
+    tabulka = []
+    for gen, genotyp in vybrane_geny.items():
+        info = geneticka_data[gen][genotyp]
+        tabulka.append({
             "Gen": gen,
             "Genotyp": genotyp,
-            "Klíč": hodnoty["KLÍČ"],
-            "Interpretace": hodnoty["INTERPRETACE"]
+            "Klíč": info["KLÍČ"],
+            "Interpretace": info["INTERPRETACE"]
         })
-df = pd.DataFrame(rows)
+    df = pd.DataFrame(tabulka)
 
-# --- 3. UI: Nahraj Word šablonu ---
-st.title("🧬 Generátor genetické zprávy")
+    st.subheader("📋 Náhled výsledkové tabulky")
+    st.dataframe(df)
 
-uploaded_template = st.file_uploader("Nahraj šablonu (.docx)", type=["docx"])
-if uploaded_template:
-    doc = Document(uploaded_template)
+    # --- 4. Automatické načtení šablony z GitHub repozitáře ---
+    template_path = "template/Vysledkova_zprava.docx"
+    try:
+        doc = Document(template_path)
+    except Exception as e:
+        st.error(f"Nepodařilo se načíst šablonu z cesty '{template_path}': {e}")
+        st.stop()
 
-    # --- 4. Najdi místo pro vložení tabulky ---
+    # --- 5. Najdi místo pro vložení tabulky ---
     target_text = "Datum a čas odběru:"
     insert_index = None
     for i, paragraph in enumerate(doc.paragraphs):
         if target_text in paragraph.text:
-            insert_index = i + 2  # vloží se pod oddělovací čáru
+            insert_index = i + 2  # vloží se pod čáru
             break
 
     if insert_index is not None:
-        # --- 5. Vlož tabulku ---
+        # --- 6. Vlož tabulku ---
         table = doc.add_table(rows=1, cols=4)
         table.style = 'Table Grid'
         hdr_cells = table.rows[0].cells
@@ -62,25 +80,26 @@ if uploaded_template:
             for i, val in enumerate(row):
                 cells[i].text = str(val)
 
-        # Přesun tabulky na správné místo
+        # Přesun tabulky
         tbl = table._element
         body = doc._body._element
         body.remove(tbl)
         doc.paragraphs[insert_index]._element.addnext(tbl)
 
-        # --- 6. Export ---
+        # --- 7. Ulož a stáhni ---
         output = io.BytesIO()
         doc.save(output)
         output.seek(0)
 
         st.download_button(
-            label="📄 Stáhnout hotový report",
+            label="📄 Stáhnout hotovou zprávu",
             data=output,
             file_name="Geneticka_zprava.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
     else:
         st.error("Nepodařilo se najít cílové místo pro vložení tabulky.")
-
+else:
+    st.info("Nejprve vyber alespoň jeden gen.")
 
 
