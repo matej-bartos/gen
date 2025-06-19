@@ -1,13 +1,8 @@
 import streamlit as st
 from docx import Document
-from docx.shared import Pt
 from docx.enum.table import WD_TABLE_ALIGNMENT
 import io
 
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
-
-# Data
 data = {
     "MCM6 13910": {
         "TT": {"KLÍČ": "+/+", "INTERPRETACE": "Vrozená tolerance laktózy."},
@@ -15,25 +10,24 @@ data = {
         "CC": {"KLÍČ": "-/-", "INTERPRETACE": "Nedostatek laktázy."}
     },
     "DAO": {
-        "CC": {"KLÍČ": "+/+", "INTERPRETACE": "Normální aktivita DAO."},
-        "CT": {"KLÍČ": "+/-", "INTERPRETACE": "Riziko histaminové intolerance."},
-        "TT": {"KLÍČ": "-/-", "INTERPRETACE": "Nízká aktivita DAO."}
+        "CT": {"KLÍČ": "+/-", "INTERPRETACE": "Riziko histaminové intolerance."}
     },
     "PEMT (rs7946)": {
-        "CC": {"KLÍČ": "+/+", "INTERPRETACE": "Normální metabolismus tuků."},
-        "CT": {"KLÍČ": "+/-", "INTERPRETACE": "Pomalejší odbourávání tuků."},
-        "TT": {"KLÍČ": "-/-", "INTERPRETACE": "Výrazně snížený metabolismus tuků."}
+        "CT": {"KLÍČ": "+/-", "INTERPRETACE": "Pomalejší odbourávání tuků."}
     }
 }
 
-# Funkce pro přesné vložení tabulky místo placeholderu
-def vloz_tabulku_na_misto(doc, vybrane):
-    body = doc._body._element
-    for i, paragraph in enumerate(doc.paragraphs):
-        if '###TABULKA###' in paragraph.text:
-            p_element = paragraph._element
+def vloz_tabulku_presne(doc, vybrane):
+    body = doc._element.body
+    for para in doc.paragraphs:
+        if "###TABULKA###" in para.text:
+            # Index aktuálního odstavce
+            idx = list(body).index(para._element)
 
-            # Vytvoř novou tabulku
+            # Odebrat placeholder
+            body.remove(para._element)
+
+            # Vytvořit tabulku
             tbl = doc.add_table(rows=1, cols=4)
             tbl.style = 'Table Grid'
             tbl.alignment = WD_TABLE_ALIGNMENT.LEFT
@@ -53,11 +47,9 @@ def vloz_tabulku_na_misto(doc, vybrane):
                     row[3].text = data[gen][var]["INTERPRETACE"]
 
             # Vložit tabulku na místo původního odstavce
-            body.insert(body.index(p_element), tbl._element)
-            body.remove(p_element)
+            body.insert(idx, tbl._element)
             break
 
-# Streamlit UI
 st.title("🧬 Generátor genetické zprávy")
 
 vybrane = {}
@@ -69,22 +61,18 @@ for gen in data:
 
 if st.button("📄 Generovat zprávu"):
     if vybrane:
-        try:
-            doc = Document("Výsledková zpráva.docx")
-            vloz_tabulku_na_misto(doc, vybrane)
+        doc = Document("Výsledková zpráva.docx")
+        vloz_tabulku_presne(doc, vybrane)
 
-            buffer = io.BytesIO()
-            doc.save(buffer)
-            buffer.seek(0)
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
 
-            st.download_button(
-                label="⬇️ Stáhnout výsledkovou zprávu",
-                data=buffer,
-                file_name="geneticka_zprava.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
-        except Exception as e:
-            st.error(f"Nastala chyba při generování zprávy: {e}")
+        st.download_button(
+            label="⬇️ Stáhnout zprávu",
+            data=buffer,
+            file_name="geneticka_zprava.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
     else:
         st.warning("Vyber alespoň jeden gen.")
-
