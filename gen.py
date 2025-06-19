@@ -1,7 +1,6 @@
 import streamlit as st
 from docx import Document
-from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.oxml.ns import qn
+import pandas as pd
 import io
 
 # --- 1. Vstupní genetická data ---
@@ -23,71 +22,65 @@ data = {
     }
 }
 
-# --- 2. Funkce: Vložení tabulky za záložku ---
-def vloz_tabulku_za_bookmark(doc, vybrane, bookmark_name="TABULKA"):
-    for p in doc.paragraphs:
-        for bookmark in p._element.findall(".//w:bookmarkStart", namespaces=p._element.nsmap):
-            if bookmark.get(qn("w:name")) == bookmark_name:
-                parent = bookmark.getparent()
-                idx = list(parent).index(bookmark)
+# --- 2. Vytvoření tabulky (DataFrame) ---
+rows = []
+for gen, genotypy in data.items():
+    for genotyp, hodnoty in genotypy.items():
+        rows.append({
+            "Gen": gen,
+            "Genotyp": genotyp,
+            "Klíč": hodnoty["KLÍČ"],
+            "Interpretace": hodnoty["INTERPRETACE"]
+        })
+df = pd.DataFrame(rows)
 
-                # Vytvořit tabulku
-                table = doc.add_table(rows=1, cols=4)
-                table.style = "Table Grid"
-                table.alignment = WD_TABLE_ALIGNMENT.LEFT
-
-                hdr = table.rows[0].cells
-                hdr[0].text = "GEN"
-                hdr[1].text = "VÝSLEDNÁ VARIANTA"
-                hdr[2].text = "Dle klíče"
-                hdr[3].text = "INTERPRETACE"
-
-                for gen, varianty in vybrane.items():
-                    for var in varianty:
-                        row = table.add_row().cells
-                        row[0].text = gen
-                        row[1].text = var
-                        row[2].text = data[gen][var]["KLÍČ"]
-                        row[3].text = data[gen][var]["INTERPRETACE"]
-
-                parent.insert(idx + 1, table._element)
-                return True
-    return False
-
-# --- 3. UI logika ve Streamlitu ---
-st.set_page_config(page_title="Genetická zpráva", page_icon="🧬", layout="centered")
+# --- 3. UI: Nahraj Word šablonu ---
 st.title("🧬 Generátor genetické zprávy")
 
-vybrane = {}
-for gen in data:
-    if st.checkbox(gen, value=False):
-        varianty = st.multiselect(f"Varianty pro {gen}:", list(data[gen].keys()), key=gen)
-        if varianty:
-            vybrane[gen] = varianty
+uploaded_template = st.file_uploader("Nahraj šablonu (.docx)", type=["docx"])
+if uploaded_template:
+    doc = Document(uploaded_template)
 
-if st.button("📄 Generovat zprávu"):
-    if not vybrane:
-        st.warning("❗ Vyber alespoň jeden gen a jeho variantu.")
+    # --- 4. Najdi místo pro vložení tabulky ---
+    target_text = "Datum a čas odběru:"
+    insert_index = None
+    for i, paragraph in enumerate(doc.paragraphs):
+        if target_text in paragraph.text:
+            insert_index = i + 2  # vloží se pod oddělovací čáru
+            break
+
+    if insert_index is not None:
+        # --- 5. Vlož tabulku ---
+        table = doc.add_table(rows=1, cols=4)
+        table.style = 'Table Grid'
+        hdr_cells = table.rows[0].cells
+        for i, col in enumerate(df.columns):
+            hdr_cells[i].text = col
+
+        for _, row in df.iterrows():
+            cells = table.add_row().cells
+            for i, val in enumerate(row):
+                cells[i].text = str(val)
+
+        # Přesun tabulky na správné místo
+        tbl = table._element
+        body = doc._body._element
+        body.remove(tbl)
+        doc.paragraphs[insert_index]._element.addnext(tbl)
+
+        # --- 6. Export ---
+        output = io.BytesIO()
+        doc.save(output)
+        output.seek(0)
+
+        st.download_button(
+            label="📄 Stáhnout hotový report",
+            data=output,
+            file_name="Geneticka_zprava.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
     else:
-        try:
-            doc = Document("Vysledkova_zprava.docx")
-        except Exception as e:
-            st.error(f"⚠️ Nepodařilo se načíst šablonu: {e}")
-        else:
-            success = vloz_tabulku_za_bookmark(doc, vybrane)
-            if not success:
-                st.error("⚠️ Záložka 'TABULKA' nebyla nalezena v šabloně Word.")
-            else:
-                buffer = io.BytesIO()
-                doc.save(buffer)
-                buffer.seek(0)
+        st.error("Nepodařilo se najít cílové místo pro vložení tabulky.")
 
-                st.success("✅ Zpráva byla úspěšně vytvořena.")
-                st.download_button(
-                    label="⬇️ Stáhnout výsledkovou zprávu",
-                    data=buffer,
-                    file_name="geneticka_zprava.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
 
 
