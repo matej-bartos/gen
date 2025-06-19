@@ -87,3 +87,4 @@ if st.button("📄 Generovat zprávu"):
             st.error(f"Nastala chyba při generování zprávy: {e}")
     else:
         st.warning("Vyber alespoň jeden gen.")
+
