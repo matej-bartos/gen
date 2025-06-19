@@ -1,9 +1,13 @@
 import streamlit as st
 from docx import Document
+from docx.shared import Pt
 from docx.enum.table import WD_TABLE_ALIGNMENT
 import io
 
-# Slovník genetických dat
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+
+# Data
 data = {
     "MCM6 13910": {
         "TT": {"KLÍČ": "+/+", "INTERPRETACE": "Vrozená tolerance laktózy."},
@@ -22,20 +26,19 @@ data = {
     }
 }
 
-# Funkce pro vložení tabulky místo placeholderu
+# Funkce pro přesné vložení tabulky místo placeholderu
 def vloz_tabulku_na_misto(doc, vybrane):
-    for paragraph in doc.paragraphs:
+    body = doc._body._element
+    for i, paragraph in enumerate(doc.paragraphs):
         if '###TABULKA###' in paragraph.text:
-            # Odstranit placeholder odstavec
-            p = paragraph._element
-            p.getparent().remove(p)
+            p_element = paragraph._element
 
-            # Vložit tabulku
-            table = doc.add_table(rows=1, cols=4)
-            table.style = 'Table Grid'
-            table.alignment = WD_TABLE_ALIGNMENT.LEFT
+            # Vytvoř novou tabulku
+            tbl = doc.add_table(rows=1, cols=4)
+            tbl.style = 'Table Grid'
+            tbl.alignment = WD_TABLE_ALIGNMENT.LEFT
 
-            hdr = table.rows[0].cells
+            hdr = tbl.rows[0].cells
             hdr[0].text = "GEN"
             hdr[1].text = "VÝSLEDNÁ VARIANTA"
             hdr[2].text = "Dle klíče"
@@ -43,11 +46,15 @@ def vloz_tabulku_na_misto(doc, vybrane):
 
             for gen, varianty in vybrane.items():
                 for var in varianty:
-                    row = table.add_row().cells
+                    row = tbl.add_row().cells
                     row[0].text = gen
                     row[1].text = var
                     row[2].text = data[gen][var]["KLÍČ"]
                     row[3].text = data[gen][var]["INTERPRETACE"]
+
+            # Vložit tabulku na místo původního odstavce
+            body.insert(body.index(p_element), tbl._element)
+            body.remove(p_element)
             break
 
 # Streamlit UI
@@ -63,7 +70,7 @@ for gen in data:
 if st.button("📄 Generovat zprávu"):
     if vybrane:
         try:
-            doc = Document("Výsledková zpráva.docx")  # Soubor musí být ve stejné složce jako app.py
+            doc = Document("Výsledková zpráva.docx")
             vloz_tabulku_na_misto(doc, vybrane)
 
             buffer = io.BytesIO()
@@ -80,6 +87,3 @@ if st.button("📄 Generovat zprávu"):
             st.error(f"Nastala chyba při generování zprávy: {e}")
     else:
         st.warning("Vyber alespoň jeden gen.")
-
-
-
