@@ -51,12 +51,12 @@ if vybrane_geny:
     st.subheader("📋 Náhled výsledkové tabulky")
     st.dataframe(df)
 
-    # --- 4. Automatické načtení šablony z GitHub repozitáře ---
-    template_path = "template/Vysledkova_zprava.docx"
+    # --- 4. Načtení šablony z rootu GitHub repozitáře ---
+    template_path = "Vysledkova_zprava.docx"
     try:
         doc = Document(template_path)
     except Exception as e:
-        st.error(f"Nepodařilo se načíst šablonu z cesty '{template_path}': {e}")
+        st.error(f"❌ Nepodařilo se načíst šablonu z '{template_path}': {e}")
         st.stop()
 
     # --- 5. Najdi místo pro vložení tabulky ---
@@ -98,8 +98,8 @@ if vybrane_geny:
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
     else:
-        st.error("Nepodařilo se najít cílové místo pro vložení tabulky.")
+        st.error("❌ Nepodařilo se najít cílové místo pro vložení tabulky.")
 else:
-    st.info("Nejprve vyber alespoň jeden gen.")
+    st.info("✅ Nejprve vyber alespoň jeden gen.")
 
 
