@@ -1,9 +1,10 @@
 import streamlit as st
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml.ns import qn
 import io
 
-# Data
+# --- 1. Genetická data ---
 data = {
     "MCM6 13910": {
         "TT": {"KLÍČ": "+/+", "INTERPRETACE": "Vrozená tolerance laktózy."},
@@ -18,16 +19,15 @@ data = {
     }
 }
 
-# Funkce pro vložení tabulky za záložku
+# --- 2. Vložení tabulky za záložku ---
 def vloz_tabulku_za_bookmark(doc, vybrane, bookmark_name="TABULKA"):
-    # Najdi XML element záložky
     for p in doc.paragraphs:
         for bookmark in p._element.findall(".//w:bookmarkStart", namespaces=p._element.nsmap):
             if bookmark.get(qn("w:name")) == bookmark_name:
                 parent = bookmark.getparent()
                 idx = list(parent).index(bookmark)
 
-                # Vytvoř tabulku
+                # Vytvořit tabulku
                 table = doc.add_table(rows=1, cols=4)
                 table.style = "Table Grid"
                 table.alignment = WD_TABLE_ALIGNMENT.LEFT
@@ -46,13 +46,12 @@ def vloz_tabulku_za_bookmark(doc, vybrane, bookmark_name="TABULKA"):
                         row[2].text = data[gen][var]["KLÍČ"]
                         row[3].text = data[gen][var]["INTERPRETACE"]
 
-                # Vlož tabulku za záložku
                 parent.insert(idx + 1, table._element)
                 return True
     return False
 
-# Streamlit UI
-st.title("🧬 Generátor genetické zprávy (se záložkou)")
+# --- 3. Streamlit UI ---
+st.title("🧬 Generátor genetické zprávy (Word)")
 
 vybrane = {}
 for gen in data:
@@ -63,21 +62,24 @@ for gen in data:
 
 if st.button("📄 Generovat zprávu"):
     if vybrane:
-        doc = Document("Vysledkova_zprava_s_bookmarkem.docx")
-        success = vloz_tabulku_za_bookmark(doc, vybrane)
-
-        if not success:
-            st.error("Záložka 'TABULKA' nebyla nalezena v dokumentu.")
+        try:
+            doc = Document("Výsledková zpráva.docx")  # Soubor musí být v rootu projektu
+        except Exception as e:
+            st.error(f"Nepodařilo se načíst šablonu: {e}")
         else:
-            buffer = io.BytesIO()
-            doc.save(buffer)
-            buffer.seek(0)
-
-            st.download_button(
-                label="⬇️ Stáhnout zprávu",
-                data=buffer,
-                file_name="geneticka_zprava.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
+            success = vloz_tabulku_za_bookmark(doc, vybrane)
+            if not success:
+                st.error("Záložka 'TABULKA' nebyla nalezena v dokumentu.")
+            else:
+                buffer = io.BytesIO()
+                doc.save(buffer)
+                buffer.seek(0)
+                st.download_button(
+                    label="⬇️ Stáhnout zprávu",
+                    data=buffer,
+                    file_name="geneticka_zprava.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
     else:
         st.warning("Vyber alespoň jeden gen.")
+
