@@ -23,22 +23,21 @@ geneticka_data = {
 }
 
 st.title("🧬 Generátor genetické zprávy se šablonou")
-st.markdown("Vyber geny a genotypy, vygeneruj zprávu, vlož tabulku do šablony Word.")
+st.markdown("Vyber geny a genotypy a stáhni finální zprávu jako Word dokument.")
 
-# --- 2. Výběr genů a genotypů (radiobuttons) ---
+# --- 2. Výběr genotypů ---
 vybrane_geny = {}
-st.subheader("Výběr genotypů")
 
 for gen, moznosti in geneticka_data.items():
     with st.expander(f"🧪 {gen}"):
         genotyp = st.radio(
-            label=f"Vyber genotyp pro {gen}:",
+            label="Zvol genotyp:",
             options=list(moznosti.keys()),
             key=gen
         )
         vybrane_geny[gen] = genotyp
 
-# --- 3. Vygeneruj DataFrame ---
+# --- 3. Vygeneruj zprávu ---
 if vybrane_geny:
     tabulka = []
     for gen, genotyp in vybrane_geny.items():
@@ -51,10 +50,7 @@ if vybrane_geny:
         })
     df = pd.DataFrame(tabulka)
 
-    st.subheader("📋 Náhled výsledkové tabulky")
-    st.dataframe(df)
-
-    # --- 4. Načtení šablony z rootu projektu (např. GitHub main) ---
+    # --- 4. Načti šablonu ze souboru v rootu projektu ---
     template_path = "Vysledkova_zprava.docx"
     try:
         doc = Document(template_path)
@@ -89,7 +85,7 @@ if vybrane_geny:
         body.remove(tbl)
         doc.paragraphs[insert_index]._element.addnext(tbl)
 
-        # --- 7. Ulož a nabídni ke stažení ---
+        # --- 7. Ulož a stáhni ---
         output = io.BytesIO()
         doc.save(output)
         output.seek(0)
@@ -104,5 +100,6 @@ if vybrane_geny:
         st.error("❌ Nepodařilo se najít cílové místo pro vložení tabulky.")
 else:
     st.info("✅ Vyber alespoň jeden gen pro generování zprávy.")
+
 
 
