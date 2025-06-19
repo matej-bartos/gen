@@ -22,35 +22,37 @@ geneticka_data = {
     }
 }
 
-st.title("🧬 Generátor genetické zprávy se šablonou")
-st.markdown("Vyber geny a genotypy a stáhni finální zprávu jako Word dokument.")
+st.title("🧬 Generátor genetické zprávy")
+st.markdown("Vyber geny a jeden nebo více genotypů, a stáhni finální zprávu jako Word dokument.")
 
-# --- 2. Výběr genotypů ---
+# --- 2. Výběr genotypů pomocí multiselectu ---
 vybrane_geny = {}
 
 for gen, moznosti in geneticka_data.items():
     with st.expander(f"🧪 {gen}"):
-        genotyp = st.radio(
-            label="Zvol genotyp:",
+        vybrane = st.multiselect(
+            label="Zvol jeden nebo více genotypů:",
             options=list(moznosti.keys()),
             key=gen
         )
-        vybrane_geny[gen] = genotyp
+        if vybrane:
+            vybrane_geny[gen] = vybrane
 
 # --- 3. Vygeneruj zprávu ---
 if vybrane_geny:
     tabulka = []
-    for gen, genotyp in vybrane_geny.items():
-        info = geneticka_data[gen][genotyp]
-        tabulka.append({
-            "Gen": gen,
-            "Genotyp": genotyp,
-            "Klíč": info["KLÍČ"],
-            "Interpretace": info["INTERPRETACE"]
-        })
+    for gen, genotypy in vybrane_geny.items():
+        for genotyp in genotypy:
+            info = geneticka_data[gen][genotyp]
+            tabulka.append({
+                "Gen": gen,
+                "Genotyp": genotyp,
+                "Klíč": info["KLÍČ"],
+                "Interpretace": info["INTERPRETACE"]
+            })
     df = pd.DataFrame(tabulka)
 
-    # --- 4. Načti šablonu ze souboru v rootu projektu ---
+    # --- 4. Načti šablonu z rootu ---
     template_path = "Vysledkova_zprava.docx"
     try:
         doc = Document(template_path)
@@ -85,7 +87,7 @@ if vybrane_geny:
         body.remove(tbl)
         doc.paragraphs[insert_index]._element.addnext(tbl)
 
-        # --- 7. Ulož a stáhni ---
+        # --- 7. Ulož a nabídni ke stažení ---
         output = io.BytesIO()
         doc.save(output)
         output.seek(0)
@@ -99,7 +101,6 @@ if vybrane_geny:
     else:
         st.error("❌ Nepodařilo se najít cílové místo pro vložení tabulky.")
 else:
-    st.info("✅ Vyber alespoň jeden gen pro generování zprávy.")
-
+    st.info("✅ Vyber alespoň jeden gen a genotyp pro generování zprávy.")
 
 
