@@ -20,18 +20,18 @@ except Exception as e:
 
 # --- Úprava a validace ---
 df_all = xls_data.rename(columns={
+    "Sekce": "Sekce",
     "GEN": "Gen",
     "Genotyp": "Genotyp",
-    "Intepretace": "Interpretace",
-    "Sekce": "Sekce"
+    "Intepretace": "Interpretace"
 })
 
-required_cols = {"Gen", "Genotyp", "Interpretace", "Sekce"}
+required_cols = {"Sekce", "Gen", "Genotyp", "Interpretace"}
 if not required_cols.issubset(df_all.columns):
     st.error(f"❌ XLSX musí obsahovat sloupce: {', '.join(required_cols)}.")
     st.stop()
 
-df_all = df_all.dropna(subset=["Gen", "Genotyp", "Interpretace", "Sekce"])
+df_all = df_all.dropna(subset=required_cols)
 
 # --- Výběr genotypů podle sekcí ---
 vybrane = {}
@@ -45,7 +45,7 @@ for sekce in df_all["Sekce"].unique():
             if zvolene:
                 vybrane[gen] = zvolene
 
-# --- Sloučení buněk v tabulce Word ---
+# --- Funkce pro sloučení buněk ve sloupci GEN ---
 def merge_gen_cells(table):
     current_gen = None
     merge_start = None
@@ -68,7 +68,7 @@ def merge_gen_cells(table):
         for j in range(merge_start + 1, len(table.rows)):
             cell_to_merge.merge(table.cell(j, 0))
         for para in cell_to_merge.paragraphs:
-            para.alignment = 1
+            para.alignment = 1  # center
 
 # --- Vygeneruj zprávu ---
 if vybrane:
@@ -141,4 +141,3 @@ if vybrane:
     )
 else:
     st.info("✅ Vyber alespoň jeden genotyp pro generování zprávy.")
-
