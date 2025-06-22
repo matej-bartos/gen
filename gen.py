@@ -6,7 +6,7 @@ import io
 import requests
 
 st.title("🧬 Generátor genetické zprávy")
-st.markdown("Soubor `Varianty.xlsx` se načítá automaticky z GitHubu (list `Sheet1`).")
+
 
 # --- Načtení XLSX z GitHubu ---
 url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ✅ uprav podle své repo struktury
