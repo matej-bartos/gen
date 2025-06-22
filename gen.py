@@ -1,6 +1,7 @@
 import streamlit as st
 from docx import Document
 from docx.shared import Pt, RGBColor
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 import pandas as pd
@@ -32,39 +33,24 @@ vybrane = {}
 for sekce in df_all["Sekce"].unique():
     st.subheader(sekce)
     df_sekce = df_all[df_all["Sekce"] == sekce]
-    for gen in df_sekce["Gen"].unique():
+    for gen in sorted(set(df_sekce["Gen"])):
         moznosti = df_sekce[df_sekce["Gen"] == gen]["Genotyp"].dropna().astype(str).unique().tolist()
         if moznosti:
             zvolene = st.multiselect(f"{gen}", moznosti, key=gen)
             if zvolene:
                 vybrane[gen] = zvolene
 
-# --- Sloučení buněk GEN (zarovnání doleva) ---
+# --- Pomocné funkce ---
 def merge_gen_cells(table):
     current_gen = None
-    merge_start = None
     for i in range(1, len(table.rows)):
         cell = table.cell(i, 0)
         gen_value = cell.text.strip()
         if gen_value == current_gen:
-            continue
+            cell.text = ""
         else:
-            if merge_start is not None and i - merge_start > 1:
-                cell_to_merge = table.cell(merge_start, 0)
-                for j in range(merge_start + 1, i):
-                    cell_to_merge.merge(table.cell(j, 0))
-                for para in cell_to_merge.paragraphs:
-                    para.alignment = 0  # left
             current_gen = gen_value
-            merge_start = i
-    if merge_start is not None and len(table.rows) - merge_start > 1:
-        cell_to_merge = table.cell(merge_start, 0)
-        for j in range(merge_start + 1, len(table.rows)):
-            cell_to_merge.merge(table.cell(j, 0))
-        for para in cell_to_merge.paragraphs:
-            para.alignment = 0
 
-# --- Funkce pro nastavení tyrkysového pozadí buňky ---
 def set_cell_background(cell, color_hex):
     tc = cell._tc
     tcPr = tc.get_or_add_tcPr()
@@ -81,7 +67,7 @@ if vybrane:
         for g in seznam:
             z = df_all[(df_all["Gen"] == gen) & (df_all["Genotyp"] == g)].iloc[0]
             vysledky.append(z)
-    df_final = pd.DataFrame(vysledky)
+    df_final = pd.DataFrame(wysledky)
 
     try:
         doc = Document("Vysledkova_zprava.docx")
@@ -99,7 +85,7 @@ if vybrane:
         st.error("❌ Text 'TABULKA' nebyl nalezen v šabloně.")
         st.stop()
 
-    # --- Vytvoření tabulky ---
+    # --- Tabulka ---
     table = doc.add_table(rows=1, cols=3)
     table.style = 'Table Grid'
     table.autofit = True
@@ -112,25 +98,26 @@ if vybrane:
             run.font.bold = True
             run.font.size = Pt(10)
 
-    # --- Přidávání dat a nadpisů sekcí ---
     for sekce in df_final["Sekce"].unique():
         df_sekce = df_final[df_final["Sekce"] == sekce]
 
-        # Řádek sekce
         row = table.add_row()
         merged = row.cells[0].merge(row.cells[1]).merge(row.cells[2])
         merged.text = sekce
-        set_cell_background(merged, "00FFFF")  # tyrkysová
+        set_cell_background(merged, "00FFFF")
         para = merged.paragraphs[0]
         run = para.runs[0]
         run.font.size = Pt(10)
         run.font.bold = True
         run.font.color.rgb = RGBColor(0, 32, 96)
-        para.alignment = 0  # left
+        para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER  # ✅ zarovnání na střed
 
+        gen_last = None
         for _, row_data in df_sekce.iterrows():
             row_cells = table.add_row().cells
-            row_cells[0].text = str(row_data["Gen"])
+            row_cells[0].text = str(row_data["Gen"]) if row_data["Gen"] != gen_last else ""
+            gen_last = row_data["Gen"]
+
             row_cells[1].text = str(row_data["Genotyp"])
             row_cells[2].text = str(row_data["Interpretace"])
 
@@ -160,3 +147,4 @@ if vybrane:
     )
 else:
     st.info("✅ Vyber alespoň jeden genotyp pro generování zprávy.")
+
