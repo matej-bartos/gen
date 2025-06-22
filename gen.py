@@ -6,34 +6,27 @@ import io
 import requests
 
 st.title("🧬 Generátor genetické zprávy")
-st.markdown("Načti genetická data z GitHubu a vytvoř personalizovanou zprávu ve formátu Word.")
+st.markdown("Soubor `Varianty.xlsx` se načítá automaticky z GitHubu (list `Sheet1`).")
 
 # --- Načtení XLSX z GitHubu ---
-url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ⚠️ RAW URL
+url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ✅ uprav podle své repo struktury
 try:
     response = requests.get(url)
     response.raise_for_status()
-    xls_data = pd.read_excel(io.BytesIO(response.content), sheet_name="List1")
+    df_all = pd.read_excel(io.BytesIO(response.content), sheet_name="Sheet1")
 except Exception as e:
     st.error(f"❌ Chyba při načítání Excelu z GitHubu: {e}")
     st.stop()
 
-# --- Úprava a validace ---
-df_all = xls_data.rename(columns={
-    "Sekce": "Sekce",
-    "GEN": "Gen",
-    "Genotyp": "Genotyp",
-    "Intepretace": "Interpretace"
-})
-
-required_cols = {"Sekce", "Gen", "Genotyp", "Interpretace"}
-if not required_cols.issubset(df_all.columns):
-    st.error(f"❌ XLSX musí obsahovat sloupce: {', '.join(required_cols)}.")
+# --- Validace sloupců ---
+required_cols = ["Sekce", "Gen", "Genotyp", "Interpretace"]
+if list(df_all.columns[:4]) != required_cols:
+    st.error(f"❌ Soubor musí obsahovat sloupce: {', '.join(required_cols)}")
     st.stop()
 
 df_all = df_all.dropna(subset=required_cols)
 
-# --- Výběr genotypů podle sekcí ---
+# --- Výběr genů podle sekcí ---
 vybrane = {}
 for sekce in df_all["Sekce"].unique():
     st.subheader(sekce)
@@ -45,7 +38,7 @@ for sekce in df_all["Sekce"].unique():
             if zvolene:
                 vybrane[gen] = zvolene
 
-# --- Funkce pro sloučení buněk ve sloupci GEN ---
+# --- Sloučení stejných buněk GEN ---
 def merge_gen_cells(table):
     current_gen = None
     merge_start = None
@@ -60,7 +53,7 @@ def merge_gen_cells(table):
                 for j in range(merge_start + 1, i):
                     cell_to_merge.merge(table.cell(j, 0))
                 for para in cell_to_merge.paragraphs:
-                    para.alignment = 1  # center
+                    para.alignment = 1
             current_gen = gen_value
             merge_start = i
     if merge_start is not None and len(table.rows) - merge_start > 1:
@@ -68,9 +61,9 @@ def merge_gen_cells(table):
         for j in range(merge_start + 1, len(table.rows)):
             cell_to_merge.merge(table.cell(j, 0))
         for para in cell_to_merge.paragraphs:
-            para.alignment = 1  # center
+            para.alignment = 1
 
-# --- Vygeneruj zprávu ---
+# --- Generování zprávy ---
 if vybrane:
     vysledky = []
     for gen, seznam in vybrane.items():
@@ -91,12 +84,11 @@ if vybrane:
             insert_index = i
             doc.paragraphs[i].text = ""
             break
-
     if insert_index is None:
         st.error("❌ Text 'TABULKA' nebyl nalezen v šabloně.")
         st.stop()
 
-    # --- Vlož tabulku ---
+    # --- Vytvoření tabulky ---
     table = doc.add_table(rows=1, cols=3)
     table.style = 'Table Grid'
     table.autofit = True
@@ -118,7 +110,6 @@ if vybrane:
         for i in [0, 1]:
             for run in cells[i].paragraphs[0].runs:
                 run.font.size = Pt(10)
-
         for run in cells[2].paragraphs[0].runs:
             run.font.size = Pt(9)
             run.font.bold = True
