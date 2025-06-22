@@ -67,7 +67,7 @@ if vybrane:
         for g in seznam:
             z = df_all[(df_all["Gen"] == gen) & (df_all["Genotyp"] == g)].iloc[0]
             vysledky.append(z)
-    df_final = pd.DataFrame(wysledky)
+    df_final = pd.DataFrame(vysledky)
 
     try:
         doc = Document("Vysledkova_zprava.docx")
