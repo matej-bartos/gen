@@ -2,46 +2,37 @@ import streamlit as st
 from docx import Document
 import pandas as pd
 import io
+import requests
 
-# === Vstupní genetická data přímo ve skriptu ===
-varianty_data = [
-    {"Gen": "MCM6 13910", "Genotyp": "TT", "Klíč": "+/+", "Interpretace": "Vrozená tolerance laktózy."},
-    {"Gen": "MCM6 13910", "Genotyp": "CT", "Klíč": "+/-", "Interpretace": "Částečná tolerance laktózy."},
-    {"Gen": "MCM6 13910", "Genotyp": "CC", "Klíč": "-/-", "Interpretace": "Nedostatek laktázy."},
-    {"Gen": "DAO", "Genotyp": "CC", "Klíč": "+/+", "Interpretace": "Normální aktivita DAO."},
-    {"Gen": "DAO", "Genotyp": "CT", "Klíč": "+/-", "Interpretace": "Riziko histaminové intolerance."},
-    {"Gen": "DAO", "Genotyp": "TT", "Klíč": "-/-", "Interpretace": "Nízká aktivita DAO."},
-    {"Gen": "PEMT (rs7946)", "Genotyp": "CC", "Klíč": "+/+", "Interpretace": "Normální metabolismus tuků."},
-    {"Gen": "PEMT (rs7946)", "Genotyp": "CT", "Klíč": "+/-", "Interpretace": "Pomalejší odbourávání tuků."},
-    {"Gen": "PEMT (rs7946)", "Genotyp": "TT", "Klíč": "-/-", "Interpretace": "Výrazně snížený metabolismus tuků."},
-    {"Gen": "COMT", "Genotyp": "Val/Val", "Klíč": "+/+", "Interpretace": "Rychlé odbourávání - horší soustředění."},
-    {"Gen": "COMT", "Genotyp": "Val/Met", "Klíč": "+/-", "Interpretace": "Vyvážené odbourávání dopaminu."},
-    {"Gen": "COMT", "Genotyp": "Met/Met", "Klíč": "-/-", "Interpretace": "Pomalé odbourávání - vyšší stresová citlivost."},
-    {"Gen": "MAO-A", "Genotyp": "TT", "Klíč": "+/+", "Interpretace": "Vysoká aktivita - sklon k úzkostem."},
-    {"Gen": "MAO-A", "Genotyp": "TC", "Klíč": "+/-", "Interpretace": "Střední aktivita MAO-A."},
-    {"Gen": "MAO-A", "Genotyp": "CC", "Klíč": "-/-", "Interpretace": "Nižší aktivita - odolnější vůči stresu."},
-    {"Gen": "ACTN3", "Genotyp": "CC", "Klíč": "+/+", "Interpretace": "Svaly pro výbušnost a sprint."},
-    {"Gen": "ACTN3", "Genotyp": "CT", "Klíč": "+/-", "Interpretace": "Univerzální typ svalů."},
-    {"Gen": "ACTN3", "Genotyp": "TT", "Klíč": "-/-", "Interpretace": "Svaly pro vytrvalost."},
-    {"Gen": "ACE I/D", "Genotyp": "I/I", "Klíč": "+/+", "Interpretace": "Vytrvalostní typ."},
-    {"Gen": "ACE I/D", "Genotyp": "I/D", "Klíč": "+/-", "Interpretace": "Smíšený typ."},
-    {"Gen": "ACE I/D", "Genotyp": "D/D", "Klíč": "-/-", "Interpretace": "Silový typ."},
-    {"Gen": "ApoE", "Genotyp": "E2/E3", "Klíč": "+/+", "Interpretace": "Nízké riziko Alzheimerovy choroby."},
-    {"Gen": "ApoE", "Genotyp": "E3/E4", "Klíč": "+/-", "Interpretace": "Mírně zvýšené riziko Alzheimerovy choroby."},
-    {"Gen": "ApoE", "Genotyp": "E4/E4", "Klíč": "-/-", "Interpretace": "Vyšší riziko Alzheimerovy choroby."},
-    {"Gen": "MTHFR", "Genotyp": "CC", "Klíč": "+/+", "Interpretace": "Efektivní metabolismus folátu."},
-    {"Gen": "MTHFR", "Genotyp": "CT", "Klíč": "+/-", "Interpretace": "Snížená přeměna folátu."},
-    {"Gen": "MTHFR", "Genotyp": "TT", "Klíč": "-/-", "Interpretace": "Výrazně snížená přeměna folátu – riziko vysokého homocysteinu."}
-]
-
-# --- UI ---
 st.title("🧬 Generátor genetické zprávy")
-st.markdown("Vyber geny a jeden nebo více genotypů, a stáhni finální zprávu jako Word dokument.")
+st.markdown("Tento nástroj načítá genetická data z GitHubu (soubor XLSX) a umožňuje vygenerovat personalizovanou zprávu.")
 
-# --- Seskupení podle genů ---
-df_all = pd.DataFrame(varianty_data)
+# --- Načtení XLSX z GitHubu ---
+url = "https://github.com/matej-bartos/gen/blob/main/Varianty.xlsx"  # ⬅️ ZMĚŇ TUTO URL na tvou
+try:
+    response = requests.get(url)
+    response.raise_for_status()
+    xls_data = pd.read_excel(io.BytesIO(response.content), sheet_name="List1")
+except Exception as e:
+    st.error(f"❌ Chyba při načítání Excelu z GitHubu: {e}")
+    st.stop()
+
+# --- Přejmenuj sloupce pro jednotnost ---
+df_all = xls_data.rename(columns={
+    "GEN": "Gen",
+    "Genotyp": "Genotyp",
+    "Intepretace": "Interpretace"
+})
+df_all["Klíč"] = ""  # Pokud nemáš sloupec Klíč, můžeš ho doplnit později nebo nechat prázdný
+
+# --- Validace ---
+required_cols = {"Gen", "Genotyp", "Interpretace", "Klíč"}
+if not required_cols.issubset(df_all.columns):
+    st.error(f"❌ XLSX musí obsahovat sloupce: {', '.join(required_cols)}.")
+    st.stop()
+
+# --- Výběr genů a genotypů ---
 vybrane = {}
-
 for gen in df_all["Gen"].unique():
     moznosti = df_all[df_all["Gen"] == gen]["Genotyp"].tolist()
     with st.expander(f"🧪 {gen}"):
@@ -49,28 +40,21 @@ for gen in df_all["Gen"].unique():
         if zvolene:
             vybrane[gen] = zvolene
 
-# --- Zpracuj výběr ---
+# --- Zpracování výběru ---
 if vybrane:
     vysledky = []
     for gen, seznam in vybrane.items():
         for g in seznam:
             z = df_all[(df_all["Gen"] == gen) & (df_all["Genotyp"] == g)].iloc[0]
-            vysledky.append({
-                "Gen": z["Gen"],
-                "Genotyp": z["Genotyp"],
-                "Klíč": z["Klíč"],
-                "Interpretace": z["Interpretace"]
-            })
+            vysledky.append(z)
     df_final = pd.DataFrame(vysledky)
 
-    # --- Načti šablonu ---
     try:
         doc = Document("Vysledkova_zprava.docx")
     except Exception as e:
         st.error(f"❌ Nepodařilo se načíst šablonu: {e}")
         st.stop()
 
-    # --- Najdi místo 'TABULKA' ---
     insert_index = None
     for i, para in enumerate(doc.paragraphs):
         if "TABULKA" in para.text:
@@ -79,7 +63,7 @@ if vybrane:
             break
 
     if insert_index is None:
-        st.error("❌ Text 'TABULKA' nebyl nalezen v dokumentu.")
+        st.error("❌ Text 'TABULKA' nebyl nalezen v šabloně.")
         st.stop()
 
     # --- Vlož tabulku ---
@@ -98,7 +82,6 @@ if vybrane:
     tbl = table._element
     doc.paragraphs[insert_index]._element.addnext(tbl)
 
-    # --- Ulož a nabídni ke stažení ---
     output = io.BytesIO()
     doc.save(output)
     output.seek(0)
