@@ -102,7 +102,6 @@ if vybrane:
         run.font.color.rgb = RGBColor(0, 32, 96)
         para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
-        # Skupiny podle genů
         for gen in df_sekce["Gen"].unique():
             df_gen = df_sekce[df_sekce["Gen"] == gen]
             first_row_idx = len(table.rows)
@@ -112,14 +111,21 @@ if vybrane:
                 row_cells[1].text = str(row_data["Genotyp"])
                 row_cells[2].text = str(row_data["Interpretace"])
 
-                for i in [1, 2]:
-                    for run in row_cells[i].paragraphs[0].runs:
-                        run.font.size = Pt(10) if i == 1 else Pt(9)
-                        if i == 2:
-                            run.font.bold = True
-                            run.font.color.rgb = RGBColor(0, 32, 96)
+                # Genotyp = Arial 10 pt
+                for run in row_cells[1].paragraphs[0].runs:
+                    run.font.name = 'Arial'
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Arial')
+                    run.font.size = Pt(10)
 
-            # Sloučení buněk ve sloupci GEN + zarovnání doleva
+                # Interpretace = Arial 9 pt, tučně, modře
+                for run in row_cells[2].paragraphs[0].runs:
+                    run.font.name = 'Arial'
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Arial')
+                    run.font.size = Pt(9)
+                    run.font.bold = True
+                    run.font.color.rgb = RGBColor(0, 32, 96)
+
+            # Sloučení buňky GEN
             last_row_idx = len(table.rows) - 1
             if last_row_idx > first_row_idx:
                 cell_to_merge = table.rows[first_row_idx].cells[0]
@@ -129,11 +135,14 @@ if vybrane:
                 for para in cell_to_merge.paragraphs:
                     para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
                     for run in para.runs:
+                        run.font.name = 'Arial'
+                        run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Arial')
                         run.font.size = Pt(10)
             else:
-                # Pokud jen 1 řádek, běžně vložit gen
                 table.rows[first_row_idx].cells[0].text = gen
                 for run in table.rows[first_row_idx].cells[0].paragraphs[0].runs:
+                    run.font.name = 'Arial'
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Arial')
                     run.font.size = Pt(10)
 
     tbl = table._element
@@ -151,5 +160,3 @@ if vybrane:
     )
 else:
     st.info("✅ Vyber alespoň jeden genotyp pro generování zprávy.")
-
-
