@@ -9,7 +9,7 @@ st.title("🧬 Generátor genetické zprávy")
 st.markdown("Načti genetická data z GitHubu a vytvoř personalizovanou zprávu ve formátu Word.")
 
 # --- Načtení XLSX z GitHubu ---
-url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ⚠️ RAW odkaz
+url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ⚠️ RAW URL
 try:
     response = requests.get(url)
     response.raise_for_status()
@@ -18,30 +18,34 @@ except Exception as e:
     st.error(f"❌ Chyba při načítání Excelu z GitHubu: {e}")
     st.stop()
 
-# --- Úprava sloupců ---
+# --- Úprava a validace ---
 df_all = xls_data.rename(columns={
     "GEN": "Gen",
     "Genotyp": "Genotyp",
-    "Intepretace": "Interpretace"
+    "Intepretace": "Interpretace",
+    "Sekce": "Sekce"
 })
 
-# --- Validace sloupců ---
-required_cols = {"Gen", "Genotyp", "Interpretace"}
+required_cols = {"Gen", "Genotyp", "Interpretace", "Sekce"}
 if not required_cols.issubset(df_all.columns):
     st.error(f"❌ XLSX musí obsahovat sloupce: {', '.join(required_cols)}.")
     st.stop()
 
-# --- Výběr genů a genotypů ---
+df_all = df_all.dropna(subset=["Gen", "Genotyp", "Interpretace", "Sekce"])
+
+# --- Výběr genotypů podle sekcí ---
 vybrane = {}
-for gen in df_all["Gen"].unique():
-    moznosti = df_all[df_all["Gen"] == gen]["Genotyp"].dropna().astype(str).unique().tolist()
-    if moznosti:
-        with st.expander(f"🧪 {gen}"):
-            zvolene = st.multiselect(f"Zvol genotyp(y) pro {gen}:", moznosti, key=gen)
+for sekce in df_all["Sekce"].unique():
+    st.subheader(sekce)
+    df_sekce = df_all[df_all["Sekce"] == sekce]
+    for gen in df_sekce["Gen"].unique():
+        moznosti = df_sekce[df_sekce["Gen"] == gen]["Genotyp"].dropna().astype(str).unique().tolist()
+        if moznosti:
+            zvolene = st.multiselect(f"{gen}", moznosti, key=gen)
             if zvolene:
                 vybrane[gen] = zvolene
 
-# --- Funkce pro sloučení shodných buněk ve sloupci GEN ---
+# --- Sloučení buněk v tabulce Word ---
 def merge_gen_cells(table):
     current_gen = None
     merge_start = None
@@ -64,7 +68,7 @@ def merge_gen_cells(table):
         for j in range(merge_start + 1, len(table.rows)):
             cell_to_merge.merge(table.cell(j, 0))
         for para in cell_to_merge.paragraphs:
-            para.alignment = 1  # center
+            para.alignment = 1
 
 # --- Vygeneruj zprávu ---
 if vybrane:
@@ -103,8 +107,38 @@ if vybrane:
         cell.text = h
         for run in cell.paragraphs[0].runs:
             run.font.bold = True
-            run.font.size = Pt(9)
+            run.font.size = Pt(10)
 
     for _, row in df_final.iterrows():
         cells = table.add_row().cells
-        cells[0].text = st
+        cells[0].text = str(row["Gen"])
+        cells[1].text = str(row["Genotyp"])
+        cells[2].text = str(row["Interpretace"])
+
+        for i in [0, 1]:
+            for run in cells[i].paragraphs[0].runs:
+                run.font.size = Pt(10)
+
+        for run in cells[2].paragraphs[0].runs:
+            run.font.size = Pt(9)
+            run.font.bold = True
+            run.font.color.rgb = RGBColor(0, 32, 96)
+
+    merge_gen_cells(table)
+
+    tbl = table._element
+    doc.paragraphs[insert_index]._element.addnext(tbl)
+
+    output = io.BytesIO()
+    doc.save(output)
+    output.seek(0)
+
+    st.download_button(
+        label="📄 Stáhnout hotovou zprávu",
+        data=output,
+        file_name="Geneticka_zprava.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+else:
+    st.info("✅ Vyber alespoň jeden genotyp pro generování zprávy.")
+
