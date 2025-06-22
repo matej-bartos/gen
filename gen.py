@@ -1,14 +1,15 @@
 import streamlit as st
 from docx import Document
+from docx.shared import Pt, RGBColor
 import pandas as pd
 import io
 import requests
 
 st.title("🧬 Generátor genetické zprávy")
-st.markdown("Načti genetická data z GitHubu a vytvoř personalizovanou zprávu.")
+st.markdown("Načti genetická data z GitHubu a vytvoř personalizovanou zprávu ve formátu Word.")
 
 # --- Načtení XLSX z GitHubu ---
-url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # <- ujisti se, že to je RAW URL
+url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ⚠️ musí to být RAW URL
 try:
     response = requests.get(url)
     response.raise_for_status()
@@ -54,7 +55,7 @@ if vybrane:
         st.error(f"❌ Nepodařilo se načíst šablonu: {e}")
         st.stop()
 
-    # --- Najdi 'TABULKA' a vlož tabulku ---
+    # --- Najdi značku TABULKA a vyčisti ji ---
     insert_index = None
     for i, para in enumerate(doc.paragraphs):
         if "TABULKA" in para.text:
@@ -66,25 +67,43 @@ if vybrane:
         st.error("❌ Text 'TABULKA' nebyl nalezen v šabloně.")
         st.stop()
 
-    # --- Vlož tabulku (3 sloupce, stejný formát jako GEN.docx) ---
+    # --- Vlož tabulku (3 sloupce, formát jako GEN.docx) ---
     table = doc.add_table(rows=1, cols=3)
     table.style = 'Table Grid'
     table.autofit = True
 
     headers = ["GEN", "VÝSLEDNÁ VARIANTA", "INTERPRETACE"]
     for i, h in enumerate(headers):
-        table.rows[0].cells[i].text = h
+        cell = table.rows[0].cells[i]
+        cell.text = h
+        for run in cell.paragraphs[0].runs:
+            run.font.bold = True
+            run.font.size = Pt(9)
 
+    # --- Styl datových řádků ---
     for _, row in df_final.iterrows():
         cells = table.add_row().cells
         cells[0].text = str(row["Gen"])
         cells[1].text = str(row["Genotyp"])
         cells[2].text = str(row["Interpretace"])
 
+        # Sloupce GEN a Genotyp – běžné formátování
+        for i in [0, 1]:
+            for run in cells[i].paragraphs[0].runs:
+                run.font.size = Pt(9)
+                run.font.bold = False
+
+        # Interpretace – modré, tučné, 9 pt
+        for run in cells[2].paragraphs[0].runs:
+            run.font.size = Pt(9)
+            run.font.bold = True
+            run.font.color.rgb = RGBColor(0, 32, 96)
+
+    # --- Vlož tabulku do dokumentu ---
     tbl = table._element
     doc.paragraphs[insert_index]._element.addnext(tbl)
 
-    # --- Nabídni ke stažení ---
+    # --- Ulož výstup ---
     output = io.BytesIO()
     doc.save(output)
     output.seek(0)
