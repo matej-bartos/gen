@@ -40,7 +40,7 @@ for sekce in df_all["Sekce"].unique():
             if zvolene:
                 vybrane[gen] = zvolene
 
-# --- Pomocné funkce ---
+# --- Pomocná funkce: pozadí buňky ---
 def set_cell_background(cell, color_hex):
     tc = cell._tc
     tcPr = tc.get_or_add_tcPr()
@@ -90,6 +90,7 @@ if vybrane:
     for sekce in df_final["Sekce"].unique():
         df_sekce = df_final[df_final["Sekce"] == sekce]
 
+        # Nadpis sekce
         row = table.add_row()
         merged = row.cells[0].merge(row.cells[1]).merge(row.cells[2])
         merged.text = sekce
@@ -101,45 +102,39 @@ if vybrane:
         run.font.color.rgb = RGBColor(0, 32, 96)
         para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
-        # zjisti geny, které mají víc než 1 řádek
-        gen_counts = df_sekce["Gen"].value_counts()
-        multi_gen_names = gen_counts[gen_counts > 1].index.tolist()
+        # Skupiny podle genů
+        for gen in df_sekce["Gen"].unique():
+            df_gen = df_sekce[df_sekce["Gen"] == gen]
+            first_row_idx = len(table.rows)
 
-        i_start = len(table.rows)
-        for _, row_data in df_sekce.iterrows():
-            row_cells = table.add_row().cells
-            row_cells[0].text = str(row_data["Gen"])
-            row_cells[1].text = str(row_data["Genotyp"])
-            row_cells[2].text = str(row_data["Interpretace"])
+            for _, row_data in df_gen.iterrows():
+                row_cells = table.add_row().cells
+                row_cells[1].text = str(row_data["Genotyp"])
+                row_cells[2].text = str(row_data["Interpretace"])
 
-            for i in [0, 1]:
-                for run in row_cells[i].paragraphs[0].runs:
-                    run.font.size = Pt(10)
-            for run in row_cells[2].paragraphs[0].runs:
-                run.font.size = Pt(9)
-                run.font.bold = True
-                run.font.color.rgb = RGBColor(0, 32, 96)
+                for i in [1, 2]:
+                    for run in row_cells[i].paragraphs[0].runs:
+                        run.font.size = Pt(10) if i == 1 else Pt(9)
+                        if i == 2:
+                            run.font.bold = True
+                            run.font.color.rgb = RGBColor(0, 32, 96)
 
-        # --- obecné slučování Gen buněk
-        row_idx = i_start
-        while row_idx < len(table.rows):
-            current_gen = table.rows[row_idx].cells[0].text.strip()
-            if current_gen and current_gen in multi_gen_names:
-                merge_start = row_idx
-                merge_end = row_idx
-                while merge_end + 1 < len(table.rows) and \
-                      table.rows[merge_end + 1].cells[0].text.strip() == current_gen:
-                    merge_end += 1
-                if merge_end > merge_start:
-                    cell_to_merge = table.rows[merge_start].cells[0]
-                    for r in range(merge_start + 1, merge_end + 1):
-                        cell_to_merge.merge(table.rows[r].cells[0])
-                        table.rows[r].cells[0].text = ""  # clear after merge
-                    for para in cell_to_merge.paragraphs:
-                        para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-                row_idx = merge_end + 1
+            # Sloučení buněk ve sloupci GEN + zarovnání doleva
+            last_row_idx = len(table.rows) - 1
+            if last_row_idx > first_row_idx:
+                cell_to_merge = table.rows[first_row_idx].cells[0]
+                for r in range(first_row_idx + 1, last_row_idx + 1):
+                    cell_to_merge.merge(table.rows[r].cells[0])
+                cell_to_merge.text = gen
+                for para in cell_to_merge.paragraphs:
+                    para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                    for run in para.runs:
+                        run.font.size = Pt(10)
             else:
-                row_idx += 1
+                # Pokud jen 1 řádek, běžně vložit gen
+                table.rows[first_row_idx].cells[0].text = gen
+                for run in table.rows[first_row_idx].cells[0].paragraphs[0].runs:
+                    run.font.size = Pt(10)
 
     tbl = table._element
     doc.paragraphs[insert_index]._element.addnext(tbl)
@@ -156,4 +151,5 @@ if vybrane:
     )
 else:
     st.info("✅ Vyber alespoň jeden genotyp pro generování zprávy.")
+
 
