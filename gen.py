@@ -8,7 +8,7 @@ st.title("🧬 Generátor genetické zprávy")
 st.markdown("Tento nástroj načítá genetická data z GitHubu (soubor XLSX) a umožňuje vygenerovat personalizovanou zprávu.")
 
 # --- Načtení XLSX z GitHubu ---
-url = "https://github.com/matej-bartos/gen/blob/main/Varianty.xlsx"  # ⬅️ ZMĚŇ TUTO URL na tvou
+url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ⬅️ musí to být raw URL!
 try:
     response = requests.get(url)
     response.raise_for_status()
@@ -17,16 +17,15 @@ except Exception as e:
     st.error(f"❌ Chyba při načítání Excelu z GitHubu: {e}")
     st.stop()
 
-# --- Přejmenuj sloupce pro jednotnost ---
+# --- Úprava názvů sloupců ---
 df_all = xls_data.rename(columns={
     "GEN": "Gen",
     "Genotyp": "Genotyp",
     "Intepretace": "Interpretace"
 })
-df_all["Klíč"] = ""  # Pokud nemáš sloupec Klíč, můžeš ho doplnit později nebo nechat prázdný
 
-# --- Validace ---
-required_cols = {"Gen", "Genotyp", "Interpretace", "Klíč"}
+# --- Validace sloupců ---
+required_cols = {"Gen", "Genotyp", "Interpretace"}
 if not required_cols.issubset(df_all.columns):
     st.error(f"❌ XLSX musí obsahovat sloupce: {', '.join(required_cols)}.")
     st.stop()
@@ -55,6 +54,7 @@ if vybrane:
         st.error(f"❌ Nepodařilo se načíst šablonu: {e}")
         st.stop()
 
+    # --- Najdi a nahraď 'TABULKA' ---
     insert_index = None
     for i, para in enumerate(doc.paragraphs):
         if "TABULKA" in para.text:
@@ -66,18 +66,17 @@ if vybrane:
         st.error("❌ Text 'TABULKA' nebyl nalezen v šabloně.")
         st.stop()
 
-    # --- Vlož tabulku ---
-    table = doc.add_table(rows=1, cols=4)
+    # --- Vlož tabulku bez sloupce 'Klíč' ---
+    table = doc.add_table(rows=1, cols=3)
     table.style = 'Table Grid'
-    for i, col in enumerate(["Gen", "Genotyp", "Klíč", "Interpretace"]):
+    for i, col in enumerate(["Gen", "Genotyp", "Interpretace"]):
         table.rows[0].cells[i].text = col
 
     for _, row in df_final.iterrows():
         cells = table.add_row().cells
-        cells[0].text = row["Gen"]
-        cells[1].text = row["Genotyp"]
-        cells[2].text = row["Klíč"]
-        cells[3].text = row["Interpretace"]
+        cells[0].text = str(row["Gen"])
+        cells[1].text = str(row["Genotyp"])
+        cells[2].text = str(row["Interpretace"])
 
     tbl = table._element
     doc.paragraphs[insert_index]._element.addnext(tbl)
