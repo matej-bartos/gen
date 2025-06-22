@@ -13,7 +13,7 @@ url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ✅ uprav 
 try:
     response = requests.get(url)
     response.raise_for_status()
-    df_all = pd.read_excel(io.BytesIO(response.content), sheet_name="Sheet1")
+    df_all = pd.read_excel(io.BytesIO(response.content), sheet_name="List1")
 except Exception as e:
     st.error(f"❌ Chyba při načítání Excelu z GitHubu: {e}")
     st.stop()
