@@ -41,16 +41,6 @@ for sekce in df_all["Sekce"].unique():
                 vybrane[gen] = zvolene
 
 # --- Pomocné funkce ---
-def merge_gen_cells(table):
-    current_gen = None
-    for i in range(1, len(table.rows)):
-        cell = table.cell(i, 0)
-        gen_value = cell.text.strip()
-        if gen_value == current_gen:
-            cell.text = ""
-        else:
-            current_gen = gen_value
-
 def set_cell_background(cell, color_hex):
     tc = cell._tc
     tcPr = tc.get_or_add_tcPr()
@@ -85,7 +75,6 @@ if vybrane:
         st.error("❌ Text 'TABULKA' nebyl nalezen v šabloně.")
         st.stop()
 
-    # --- Tabulka ---
     table = doc.add_table(rows=1, cols=3)
     table.style = 'Table Grid'
     table.autofit = True
@@ -110,27 +99,47 @@ if vybrane:
         run.font.size = Pt(10)
         run.font.bold = True
         run.font.color.rgb = RGBColor(0, 32, 96)
-        para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER  # ✅ zarovnání na střed
+        para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
-        gen_last = None
+        # zjisti geny, které mají víc než 1 řádek
+        gen_counts = df_sekce["Gen"].value_counts()
+        multi_gen_names = gen_counts[gen_counts > 1].index.tolist()
+
+        i_start = len(table.rows)
         for _, row_data in df_sekce.iterrows():
             row_cells = table.add_row().cells
-            row_cells[0].text = str(row_data["Gen"]) if row_data["Gen"] != gen_last else ""
-            gen_last = row_data["Gen"]
-
+            row_cells[0].text = str(row_data["Gen"])
             row_cells[1].text = str(row_data["Genotyp"])
             row_cells[2].text = str(row_data["Interpretace"])
 
             for i in [0, 1]:
                 for run in row_cells[i].paragraphs[0].runs:
                     run.font.size = Pt(10)
-
             for run in row_cells[2].paragraphs[0].runs:
                 run.font.size = Pt(9)
                 run.font.bold = True
                 run.font.color.rgb = RGBColor(0, 32, 96)
 
-    merge_gen_cells(table)
+        # --- obecné slučování Gen buněk
+        row_idx = i_start
+        while row_idx < len(table.rows):
+            current_gen = table.rows[row_idx].cells[0].text.strip()
+            if current_gen and current_gen in multi_gen_names:
+                merge_start = row_idx
+                merge_end = row_idx
+                while merge_end + 1 < len(table.rows) and \
+                      table.rows[merge_end + 1].cells[0].text.strip() == current_gen:
+                    merge_end += 1
+                if merge_end > merge_start:
+                    cell_to_merge = table.rows[merge_start].cells[0]
+                    for r in range(merge_start + 1, merge_end + 1):
+                        cell_to_merge.merge(table.rows[r].cells[0])
+                        table.rows[r].cells[0].text = ""  # clear after merge
+                    for para in cell_to_merge.paragraphs:
+                        para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+                row_idx = merge_end + 1
+            else:
+                row_idx += 1
 
     tbl = table._element
     doc.paragraphs[insert_index]._element.addnext(tbl)
