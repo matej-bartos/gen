@@ -5,10 +5,10 @@ import io
 import requests
 
 st.title("🧬 Generátor genetické zprávy")
-st.markdown("Tento nástroj načítá genetická data z GitHubu (soubor XLSX) a umožňuje vygenerovat personalizovanou zprávu.")
+st.markdown("Načti genetická data z GitHubu a vytvoř personalizovanou zprávu.")
 
 # --- Načtení XLSX z GitHubu ---
-url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ⬅️ musí to být raw URL!
+url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # <- ujisti se, že to je RAW URL
 try:
     response = requests.get(url)
     response.raise_for_status()
@@ -17,14 +17,14 @@ except Exception as e:
     st.error(f"❌ Chyba při načítání Excelu z GitHubu: {e}")
     st.stop()
 
-# --- Úprava názvů sloupců ---
+# --- Úprava sloupců ---
 df_all = xls_data.rename(columns={
     "GEN": "Gen",
     "Genotyp": "Genotyp",
     "Intepretace": "Interpretace"
 })
 
-# --- Validace sloupců ---
+# --- Validace ---
 required_cols = {"Gen", "Genotyp", "Interpretace"}
 if not required_cols.issubset(df_all.columns):
     st.error(f"❌ XLSX musí obsahovat sloupce: {', '.join(required_cols)}.")
@@ -33,13 +33,13 @@ if not required_cols.issubset(df_all.columns):
 # --- Výběr genů a genotypů ---
 vybrane = {}
 for gen in df_all["Gen"].unique():
-    moznosti = df_all[df_all["Gen"] == gen]["Genotyp"].tolist()
+    moznosti = df_all[df_all["Gen"] == gen]["Genotyp"].dropna().unique().tolist()
     with st.expander(f"🧪 {gen}"):
         zvolene = st.multiselect(f"Zvol genotyp(y) pro {gen}:", moznosti, key=gen)
         if zvolene:
             vybrane[gen] = zvolene
 
-# --- Zpracování výběru ---
+# --- Vygeneruj zprávu ---
 if vybrane:
     vysledky = []
     for gen, seznam in vybrane.items():
@@ -54,7 +54,7 @@ if vybrane:
         st.error(f"❌ Nepodařilo se načíst šablonu: {e}")
         st.stop()
 
-    # --- Najdi a nahraď 'TABULKA' ---
+    # --- Najdi 'TABULKA' a vlož tabulku ---
     insert_index = None
     for i, para in enumerate(doc.paragraphs):
         if "TABULKA" in para.text:
@@ -66,11 +66,14 @@ if vybrane:
         st.error("❌ Text 'TABULKA' nebyl nalezen v šabloně.")
         st.stop()
 
-    # --- Vlož tabulku bez sloupce 'Klíč' ---
+    # --- Vlož tabulku (3 sloupce, stejný formát jako GEN.docx) ---
     table = doc.add_table(rows=1, cols=3)
     table.style = 'Table Grid'
-    for i, col in enumerate(["Gen", "Genotyp", "Interpretace"]):
-        table.rows[0].cells[i].text = col
+    table.autofit = True
+
+    headers = ["GEN", "VÝSLEDNÁ VARIANTA", "INTERPRETACE"]
+    for i, h in enumerate(headers):
+        table.rows[0].cells[i].text = h
 
     for _, row in df_final.iterrows():
         cells = table.add_row().cells
@@ -81,6 +84,7 @@ if vybrane:
     tbl = table._element
     doc.paragraphs[insert_index]._element.addnext(tbl)
 
+    # --- Nabídni ke stažení ---
     output = io.BytesIO()
     doc.save(output)
     output.seek(0)
