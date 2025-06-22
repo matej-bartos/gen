@@ -1,15 +1,16 @@
 import streamlit as st
 from docx import Document
 from docx.shared import Pt, RGBColor
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 import pandas as pd
 import io
 import requests
 
 st.title("🧬 Generátor genetické zprávy")
 
-
 # --- Načtení XLSX z GitHubu ---
-url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"  # ✅ uprav podle své repo struktury
+url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"
 try:
     response = requests.get(url)
     response.raise_for_status()
@@ -38,7 +39,7 @@ for sekce in df_all["Sekce"].unique():
             if zvolene:
                 vybrane[gen] = zvolene
 
-# --- Sloučení stejných buněk GEN ---
+# --- Sloučení buněk GEN (zarovnání doleva) ---
 def merge_gen_cells(table):
     current_gen = None
     merge_start = None
@@ -53,7 +54,7 @@ def merge_gen_cells(table):
                 for j in range(merge_start + 1, i):
                     cell_to_merge.merge(table.cell(j, 0))
                 for para in cell_to_merge.paragraphs:
-                    para.alignment = 1
+                    para.alignment = 0  # left
             current_gen = gen_value
             merge_start = i
     if merge_start is not None and len(table.rows) - merge_start > 1:
@@ -61,7 +62,17 @@ def merge_gen_cells(table):
         for j in range(merge_start + 1, len(table.rows)):
             cell_to_merge.merge(table.cell(j, 0))
         for para in cell_to_merge.paragraphs:
-            para.alignment = 1
+            para.alignment = 0
+
+# --- Funkce pro nastavení tyrkysového pozadí buňky ---
+def set_cell_background(cell, color_hex):
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    shd = OxmlElement('w:shd')
+    shd.set(qn('w:val'), 'clear')
+    shd.set(qn('w:color'), 'auto')
+    shd.set(qn('w:fill'), color_hex)
+    tcPr.append(shd)
 
 # --- Generování zprávy ---
 if vybrane:
@@ -101,19 +112,36 @@ if vybrane:
             run.font.bold = True
             run.font.size = Pt(10)
 
-    for _, row in df_final.iterrows():
-        cells = table.add_row().cells
-        cells[0].text = str(row["Gen"])
-        cells[1].text = str(row["Genotyp"])
-        cells[2].text = str(row["Interpretace"])
+    # --- Přidávání dat a nadpisů sekcí ---
+    for sekce in df_final["Sekce"].unique():
+        df_sekce = df_final[df_final["Sekce"] == sekce]
 
-        for i in [0, 1]:
-            for run in cells[i].paragraphs[0].runs:
-                run.font.size = Pt(10)
-        for run in cells[2].paragraphs[0].runs:
-            run.font.size = Pt(9)
-            run.font.bold = True
-            run.font.color.rgb = RGBColor(0, 32, 96)
+        # Řádek sekce
+        row = table.add_row()
+        merged = row.cells[0].merge(row.cells[1]).merge(row.cells[2])
+        merged.text = sekce
+        set_cell_background(merged, "00FFFF")  # tyrkysová
+        para = merged.paragraphs[0]
+        run = para.runs[0]
+        run.font.size = Pt(10)
+        run.font.bold = True
+        run.font.color.rgb = RGBColor(0, 32, 96)
+        para.alignment = 0  # left
+
+        for _, row_data in df_sekce.iterrows():
+            row_cells = table.add_row().cells
+            row_cells[0].text = str(row_data["Gen"])
+            row_cells[1].text = str(row_data["Genotyp"])
+            row_cells[2].text = str(row_data["Interpretace"])
+
+            for i in [0, 1]:
+                for run in row_cells[i].paragraphs[0].runs:
+                    run.font.size = Pt(10)
+
+            for run in row_cells[2].paragraphs[0].runs:
+                run.font.size = Pt(9)
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 32, 96)
 
     merge_gen_cells(table)
 
