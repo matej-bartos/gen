@@ -116,14 +116,14 @@ if vybrane:
 
                 # Genotyp = Arial 10 pt
                 for run in row_cells[1].paragraphs[0].runs:
-                    run.font.name = 'Arial'
-                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Arial')
-                    run.font.size = Pt(10)
+                    run.font.name = 'Calibri'
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+                    run.font.size = Pt(9)
 
                 # Interpretace = Arial 9 pt, tučně, modře
                 for run in row_cells[2].paragraphs[0].runs:
-                    run.font.name = 'Arial'
-                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Arial')
+                    run.font.name = 'Calibri'
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
                     run.font.size = Pt(9)
                     run.font.bold = True
                     run.font.color.rgb = RGBColor(0, 32, 96)
@@ -138,15 +138,15 @@ if vybrane:
                 for para in cell_to_merge.paragraphs:
                     para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
                     for run in para.runs:
-                        run.font.name = 'Arial'
-                        run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Arial')
-                        run.font.size = Pt(10)
+                        run.font.name = 'Calibri'
+                        run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+                        run.font.size = Pt(9)
             else:
                 table.rows[first_row_idx].cells[0].text = gen
                 for run in table.rows[first_row_idx].cells[0].paragraphs[0].runs:
-                    run.font.name = 'Arial'
-                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Arial')
-                    run.font.size = Pt(10)
+                    run.font.name = 'Calibri'
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+                    run.font.size = Pt(9)
 
     tbl = table._element
     doc.paragraphs[insert_index]._element.addnext(tbl)
