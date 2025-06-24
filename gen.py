@@ -1,6 +1,6 @@
 import streamlit as st
 from docx import Document
-from docx.shared import Pt, RGBColor
+from docx.shared import Pt, RGBColor, Cm
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -77,7 +77,14 @@ if vybrane:
 
     table = doc.add_table(rows=1, cols=4)
     table.style = 'Table Grid'
-    table.autofit = True
+    table.autofit = False
+
+    # --- Nastavení šířky sloupců ---
+    for row in table.rows:
+        row.cells[0].width = Cm(2.5)  # GEN
+        row.cells[1].width = Cm(2.5)  # VÝSLEDNÁ VARIANTA
+        row.cells[2].width = Cm(2.5)  # DLE KLÍČE
+        row.cells[3].width = Cm(8.0)  # INTERPRETACE
 
     headers = ["GEN", "VÝSLEDNÁ VARIANTA", "DLE KLÍČE", "INTERPRETACE"]
     for i, h in enumerate(headers):
