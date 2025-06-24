@@ -87,6 +87,9 @@ if vybrane:
             run.font.bold = True
             run.font.size = Pt(10)
 
+    # --- Zachování pořadí genů dle Excelu ---
+    poradi_genu = df_all["Gen"].drop_duplicates().tolist()
+
     for sekce in df_final["Sekce"].unique():
         df_sekce = df_final[df_final["Sekce"] == sekce]
 
@@ -102,7 +105,7 @@ if vybrane:
         run.font.color.rgb = RGBColor(0, 32, 96)
         para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
-        for gen in df_sekce["Gen"].unique():
+        for gen in [g for g in poradi_genu if g in df_sekce["Gen"].values]:
             df_gen = df_sekce[df_sekce["Gen"] == gen]
             first_row_idx = len(table.rows)
 
