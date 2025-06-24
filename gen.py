@@ -30,10 +30,10 @@ df_all = df_all.dropna(subset=required_cols)
 
 # --- Výběr genů podle sekcí ---
 vybrane = {}
-for sekce in df_all["Sekce"].unique():
+for sekce in df_all["Sekce"].dropna().unique():
     st.subheader(sekce)
     df_sekce = df_all[df_all["Sekce"] == sekce]
-    for gen in sorted(set(df_sekce["Gen"])):
+    for gen in df_sekce["Gen"].dropna().drop_duplicates():
         moznosti = df_sekce[df_sekce["Gen"] == gen]["Genotyp"].dropna().astype(str).unique().tolist()
         if moznosti:
             zvolene = st.multiselect(f"{gen}", moznosti, key=gen)
@@ -87,11 +87,10 @@ if vybrane:
             run.font.bold = True
             run.font.size = Pt(10)
 
-    # --- Zachování pořadí genů dle Excelu ---
-    poradi_genu = df_all["Gen"].drop_duplicates().tolist()
-
-    for sekce in df_final["Sekce"].unique():
+    for sekce in df_all["Sekce"].dropna().drop_duplicates():
         df_sekce = df_final[df_final["Sekce"] == sekce]
+        if df_sekce.empty:
+            continue
 
         # Nadpis sekce
         row = table.add_row()
@@ -105,7 +104,8 @@ if vybrane:
         run.font.color.rgb = RGBColor(0, 32, 96)
         para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
-        for gen in [g for g in poradi_genu if g in df_sekce["Gen"].values]:
+        poradi_genu_sekce = df_all[df_all["Sekce"] == sekce]["Gen"].drop_duplicates().tolist()
+        for gen in [g for g in poradi_genu_sekce if g in df_sekce["Gen"].values]:
             df_gen = df_sekce[df_sekce["Gen"] == gen]
             first_row_idx = len(table.rows)
 
