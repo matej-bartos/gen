@@ -75,11 +75,11 @@ if vybrane:
         st.error("❌ Text 'TABULKA' nebyl nalezen v šabloně.")
         st.stop()
 
-    table = doc.add_table(rows=1, cols=3)
+    table = doc.add_table(rows=1, cols=4)
     table.style = 'Table Grid'
     table.autofit = True
 
-    headers = ["GEN", "VÝSLEDNÁ VARIANTA", "INTERPRETACE"]
+    headers = ["GEN", "VÝSLEDNÁ VARIANTA", "DLE KLÍČE", "INTERPRETACE"]
     for i, h in enumerate(headers):
         cell = table.rows[0].cells[i]
         cell.text = h
@@ -96,7 +96,7 @@ if vybrane:
             continue
 
         row = table.add_row()
-        merged = row.cells[0].merge(row.cells[1]).merge(row.cells[2])
+        merged = row.cells[0].merge(row.cells[1]).merge(row.cells[2]).merge(row.cells[3])
         merged.text = sekce
         set_cell_background(merged, "00FFFF")
         para = merged.paragraphs[0]
@@ -116,19 +116,15 @@ if vybrane:
             for _, row_data in df_gen.iterrows():
                 row_cells = table.add_row().cells
                 row_cells[1].text = str(row_data["Genotyp"])
-                row_cells[2].text = str(row_data["Interpretace"])
+                row_cells[2].text = ""  # DLE KLÍČE – prázdný
+                row_cells[3].text = str(row_data["Interpretace"])
 
-                for run in row_cells[1].paragraphs[0].runs:
-                    run.font.name = 'Calibri'
-                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
-                    run.font.size = Pt(9)
-                    run.font.color.rgb = RGBColor(0, 0, 0)
-
-                for run in row_cells[2].paragraphs[0].runs:
-                    run.font.name = 'Calibri'
-                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
-                    run.font.size = Pt(9)
-                    run.font.color.rgb = RGBColor(0, 0, 0)
+                for c in [1, 2, 3]:
+                    for run in row_cells[c].paragraphs[0].runs:
+                        run.font.name = 'Calibri'
+                        run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+                        run.font.size = Pt(9)
+                        run.font.color.rgb = RGBColor(0, 0, 0)
 
             last_row_idx = len(table.rows) - 1
             if last_row_idx > first_row_idx:
