@@ -84,24 +84,28 @@ if vybrane:
         cell = table.rows[0].cells[i]
         cell.text = h
         for run in cell.paragraphs[0].runs:
+            run.font.name = 'Calibri'
+            run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0, 0, 0)
             run.font.bold = True
-            run.font.size = Pt(10)
 
     for sekce in df_all["Sekce"].dropna().drop_duplicates():
         df_sekce = df_final[df_final["Sekce"] == sekce]
         if df_sekce.empty:
             continue
 
-        # Nadpis sekce
         row = table.add_row()
         merged = row.cells[0].merge(row.cells[1]).merge(row.cells[2])
         merged.text = sekce
         set_cell_background(merged, "00FFFF")
         para = merged.paragraphs[0]
         run = para.runs[0]
-        run.font.size = Pt(10)
+        run.font.name = 'Calibri'
+        run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+        run.font.size = Pt(9)
         run.font.bold = True
-        run.font.color.rgb = RGBColor(0, 32, 96)
+        run.font.color.rgb = RGBColor(0, 0, 0)
         para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
         poradi_genu_sekce = df_all[df_all["Sekce"] == sekce]["Gen"].drop_duplicates().tolist()
@@ -114,21 +118,18 @@ if vybrane:
                 row_cells[1].text = str(row_data["Genotyp"])
                 row_cells[2].text = str(row_data["Interpretace"])
 
-                # Genotyp = Arial 10 pt
                 for run in row_cells[1].paragraphs[0].runs:
                     run.font.name = 'Calibri'
                     run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
                     run.font.size = Pt(9)
+                    run.font.color.rgb = RGBColor(0, 0, 0)
 
-                # Interpretace = Arial 9 pt, tučně, modře
                 for run in row_cells[2].paragraphs[0].runs:
                     run.font.name = 'Calibri'
                     run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
                     run.font.size = Pt(9)
-                    run.font.bold = True
-                    run.font.color.rgb = RGBColor(0, 32, 96)
+                    run.font.color.rgb = RGBColor(0, 0, 0)
 
-            # Sloučení buňky GEN
             last_row_idx = len(table.rows) - 1
             if last_row_idx > first_row_idx:
                 cell_to_merge = table.rows[first_row_idx].cells[0]
@@ -141,12 +142,14 @@ if vybrane:
                         run.font.name = 'Calibri'
                         run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
                         run.font.size = Pt(9)
+                        run.font.color.rgb = RGBColor(0, 0, 0)
             else:
                 table.rows[first_row_idx].cells[0].text = gen
                 for run in table.rows[first_row_idx].cells[0].paragraphs[0].runs:
                     run.font.name = 'Calibri'
                     run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
                     run.font.size = Pt(9)
+                    run.font.color.rgb = RGBColor(0, 0, 0)
 
     tbl = table._element
     doc.paragraphs[insert_index]._element.addnext(tbl)
