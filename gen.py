@@ -1,6 +1,6 @@
 import streamlit as st
 from docx import Document
-from docx.shared import Pt, RGBColor
+from docx.shared import Pt, RGBColor, Cm
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -77,7 +77,13 @@ if vybrane:
 
     table = doc.add_table(rows=1, cols=4)
     table.style = 'Table Grid'
-    table.autofit = True
+    table.autofit = False
+
+    for row in table.rows:
+        row.cells[0].width = Cm(2.5)  # GEN
+        row.cells[1].width = Cm(2.5)  # VÝSLEDNÁ VARIANTA
+        row.cells[2].width = Cm(2.5)  # DLE KLÍČE
+        row.cells[3].width = Cm(8.0)  # INTERPRETACE
 
     headers = ["GEN", "VÝSLEDNÁ VARIANTA", "DLE KLÍČE", "INTERPRETACE"]
     for i, h in enumerate(headers):
@@ -115,16 +121,30 @@ if vybrane:
 
             for _, row_data in df_gen.iterrows():
                 row_cells = table.add_row().cells
-                row_cells[1].text = str(row_data["Genotyp"])
-                row_cells[2].text = ""  # DLE KLÍČE – prázdný
-                row_cells[3].text = str(row_data["Interpretace"])
 
-                for c in [1, 2, 3]:
-                    for run in row_cells[c].paragraphs[0].runs:
-                        run.font.name = 'Calibri'
-                        run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
-                        run.font.size = Pt(9)
-                        run.font.color.rgb = RGBColor(0, 0, 0)
+                # Genotyp
+                row_cells[1].text = str(row_data["Genotyp"])
+                for run in row_cells[1].paragraphs[0].runs:
+                    run.font.name = 'Calibri'
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+                    run.font.size = Pt(9)
+                    run.font.color.rgb = RGBColor(0, 0, 0)
+
+                # DLE KLÍČE – prázdný, ale přesně formátovaný
+                para = row_cells[2].paragraphs[0]
+                run = para.add_run("")
+                run.font.name = 'Calibri'
+                run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+                run.font.size = Pt(9)
+                run.font.color.rgb = RGBColor(0, 0, 0)
+
+                # Interpretace
+                row_cells[3].text = str(row_data["Interpretace"])
+                for run in row_cells[3].paragraphs[0].runs:
+                    run.font.name = 'Calibri'
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+                    run.font.size = Pt(9)
+                    run.font.color.rgb = RGBColor(0, 0, 0)
 
             last_row_idx = len(table.rows) - 1
             if last_row_idx > first_row_idx:
