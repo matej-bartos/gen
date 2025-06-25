@@ -72,18 +72,86 @@ if vybrane:
             doc.paragraphs[i].text = ""
             break
     if insert_index is None:
+import streamlit as st
+from docx import Document
+from docx.shared import Pt, RGBColor
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+import pandas as pd
+import io
+import requests
+
+st.title("🧬 Generátor genetické zprávy")
+
+# --- Načtení XLSX z GitHubu ---
+url = "https://github.com/matej-bartos/gen/raw/main/Varianty.xlsx"
+try:
+    response = requests.get(url)
+    response.raise_for_status()
+    df_all = pd.read_excel(io.BytesIO(response.content), sheet_name="List1")
+except Exception as e:
+    st.error(f"❌ Chyba při načítání Excelu z GitHubu: {e}")
+    st.stop()
+
+# --- Validace sloupců ---
+required_cols = ["Sekce", "Gen", "Genotyp", "Interpretace"]
+if list(df_all.columns[:4]) != required_cols:
+    st.error(f"❌ Soubor musí obsahovat sloupce: {', '.join(required_cols)}")
+    st.stop()
+
+df_all = df_all.dropna(subset=required_cols)
+
+# --- Výběr genů podle sekcí ---
+vybrane = {}
+for sekce in df_all["Sekce"].dropna().unique():
+    st.subheader(sekce)
+    df_sekce = df_all[df_all["Sekce"] == sekce]
+    for gen in df_sekce["Gen"].dropna().drop_duplicates():
+        moznosti = df_sekce[df_sekce["Gen"] == gen]["Genotyp"].dropna().astype(str).unique().tolist()
+        if moznosti:
+            zvolene = st.multiselect(f"{gen}", moznosti, key=gen)
+            if zvolene:
+                vybrane[gen] = zvolene
+
+# --- Pomocná funkce: pozadí buňky ---
+def set_cell_background(cell, color_hex):
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    shd = OxmlElement('w:shd')
+    shd.set(qn('w:val'), 'clear')
+    shd.set(qn('w:color'), 'auto')
+    shd.set(qn('w:fill'), color_hex)
+    tcPr.append(shd)
+
+# --- Generování zprávy ---
+if vybrane:
+    vysledky = []
+    for gen, seznam in vybrane.items():
+        for g in seznam:
+            z = df_all[(df_all["Gen"] == gen) & (df_all["Genotyp"] == g)].iloc[0]
+            vysledky.append(z)
+    df_final = pd.DataFrame(vysledky)
+
+    try:
+        doc = Document("Vysledkova_zprava.docx")
+    except Exception as e:
+        st.error(f"❌ Nepodařilo se načíst šablonu: {e}")
+        st.stop()
+
+    insert_index = None
+    for i, para in enumerate(doc.paragraphs):
+        if "TABULKA" in para.text:
+            insert_index = i
+            doc.paragraphs[i].text = ""
+            break
+    if insert_index is None:
         st.error("❌ Text 'TABULKA' nebyl nalezen v šabloně.")
         st.stop()
 
     table = doc.add_table(rows=1, cols=4)
     table.style = 'Table Grid'
-    table.autofit = False
-
-    for row in table.rows:
-        row.cells[0].width = Cm(2.5)  # GEN
-        row.cells[1].width = Cm(2.5)  # VÝSLEDNÁ VARIANTA
-        row.cells[2].width = Cm(2.5)  # DLE KLÍČE
-        row.cells[3].width = Cm(8.0)  # INTERPRETACE
+    table.autofit = True
 
     headers = ["GEN", "VÝSLEDNÁ VARIANTA", "DLE KLÍČE", "INTERPRETACE"]
     for i, h in enumerate(headers):
@@ -121,30 +189,16 @@ if vybrane:
 
             for _, row_data in df_gen.iterrows():
                 row_cells = table.add_row().cells
-
-                # Genotyp
                 row_cells[1].text = str(row_data["Genotyp"])
-                for run in row_cells[1].paragraphs[0].runs:
-                    run.font.name = 'Calibri'
-                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
-                    run.font.size = Pt(9)
-                    run.font.color.rgb = RGBColor(0, 0, 0)
-
-                # DLE KLÍČE – prázdný, ale přesně formátovaný
-                para = row_cells[2].paragraphs[0]
-                run = para.add_run("")
-                run.font.name = 'Calibri'
-                run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
-                run.font.size = Pt(9)
-                run.font.color.rgb = RGBColor(0, 0, 0)
-
-                # Interpretace
+                row_cells[2].text = ""  # DLE KLÍČE – prázdný
                 row_cells[3].text = str(row_data["Interpretace"])
-                for run in row_cells[3].paragraphs[0].runs:
-                    run.font.name = 'Calibri'
-                    run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
-                    run.font.size = Pt(9)
-                    run.font.color.rgb = RGBColor(0, 0, 0)
+
+                for c in [1, 2, 3]:
+                    for run in row_cells[c].paragraphs[0].runs:
+                        run.font.name = 'Calibri'
+                        run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+                        run.font.size = Pt(9)
+                        run.font.color.rgb = RGBColor(0, 0, 0)
 
             last_row_idx = len(table.rows) - 1
             if last_row_idx > first_row_idx:
@@ -182,3 +236,4 @@ if vybrane:
     )
 else:
     st.info("✅ Vyber alespoň jeden genotyp pro generování zprávy.")
+
