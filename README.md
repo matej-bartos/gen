@@ -28,9 +28,13 @@ Interaktivní aplikace postavená na [Streamlit](https://streamlit.io/) pro výb
 
 | Sloupec          | Popis                               |
 | ---------------- | ----------------------------------- |
+
 | **Sekce**        | Tematický blok (např. Metabolismus) |
+
 | **Gen**          | Název genu                          |
+
 | **Genotyp**      | Varianta (např. CC, \*2/\*2…)       |
+
 | **Interpretace** | Vysvětlení vlivu varianty           |
 
 
