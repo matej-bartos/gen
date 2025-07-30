@@ -16,7 +16,7 @@ Interaktivní aplikace postavená na [Streamlit](https://streamlit.io/) pro výb
 
 ## 📂 Struktura repozitáře
 
-📦 gen/
+
 ├── gen.py # Hlavní Streamlit skript
 
 ├── Varianty.xlsx # Zdroj dat s genotypy a interpretacemi
