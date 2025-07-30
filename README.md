@@ -10,7 +10,7 @@ Interaktivní aplikace postavená na [Streamlit](https://streamlit.io/) pro výb
 - Interaktivní výběr genotypů podle sekcí a genů  
 - Automatické sestavení a vložení tabulky do Word šablony **Vysledkova_zprava.docx**  
 - Barevné oddělení sekcí a inteligentní sloučení buněk pro geny s více variantami  
-- Stáhnutí výsledné zprávy jedním kliknutím
+- Stažení výsledné zprávy jedním kliknutím
 
 ---
 
@@ -47,9 +47,9 @@ Styl tabulky: Table Grid (lze změnit v kódu).
 Hlavní bloky skriptu app.py jsou odděleny komentáři # === Název sekce ===.
 
 Kódová sekce	Účel
-Načtení Excelu	Stáhne Varianty.xlsx z GitHubu a validuje povinné sloupce.
-Výběr genotypů	Vytváří uživatelské rozhraní pro výběr variant pomocí st.multiselect.
-Generování zprávy	Načte Word šablonu, sestaví tabulku, formátuje sekce, sloučí buňky pro geny s více variantami
-Stáhnutí výstupu	Nabídne hotový dokument ke stažení přes st.download_button.
+Načtení excel Varianty.xlsx z GitHubu a validace povinných sloupců.
+Výběr genotypů	vytváří uživatelské rozhraní pro výběr variant pomocí st.multiselect.
+Generování zprávy	načte Word šablonu, sestaví tabulku, formátuje sekce, sloučí buňky pro geny s více variantami.
+Stažení výstupu	nabídne hotový dokument ke stažení přes st.download_button.
 
 Pomocná funkce set_cell_background nastavuje barvu pozadí buněk přímo přes XML (python-docx).
